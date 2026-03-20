@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+pymongo
+python-dotenv
+httpx
+requests
+dateparser
+pytz
+deepgram-sdk
+python-multipart
+# AI
+langchain
+langgraph
+langchain-groq
+langchain-community
+regex
