@@ -21,6 +21,13 @@ class ChatResponse(BaseModel):
     audio_base64: Optional[str] = None
 
 # --- Test Endpoint ---
+@router.get("/health", tags=["Debug"])
+def health_check():
+    """
+    Health check for API prefix.
+    """
+    return {"status": "ok"}
+
 @router.get("/test", tags=["Debug"])
 def test_endpoint():
     """
