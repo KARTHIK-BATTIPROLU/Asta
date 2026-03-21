@@ -67,7 +67,7 @@ def shutdown_db_client():
         logger.info("Closed MongoDB connection")
 
 # Health Check
-@app.get("/api/health")
+@app.get("/health")
 def health_check():
     return {"status": "ok", "service": "ASTA API", "version": "1.0.0"}
 
