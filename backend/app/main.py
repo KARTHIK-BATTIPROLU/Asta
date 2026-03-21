@@ -4,12 +4,31 @@ from backend.app.api.routes import router
 from backend.app.config import config
 from backend.app.db.mongo import MongoDB
 import logging
+import asyncio
+from reminder_agent.poller import process_reminders
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="ASTA API")
+
+# Background Poller Task
+async def run_poller():
+    """
+    Runs the reminder poller in the background.
+    Polls every 30 seconds.
+    """
+    logger.info("Background Poller Started")
+    while True:
+        try:
+            # Reusing existing async poller logic
+            await process_reminders()
+        except Exception as e:
+            logger.error(f"Background Poller Error: {e}")
+        
+        # Wait 30 seconds before next poll
+        await asyncio.sleep(30)
 
 # CORS
 app.add_middleware(
@@ -20,12 +39,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Connect to DB on startup
+# Connect to DB on startup & Start Poller
 @app.on_event("startup")
-def startup_db_client():
+async def startup_event():
+    # 1. Validate Config
     config.validate()
+    
+    # 2. Connect Backend DB
     MongoDB.connect()
     logger.info("Connected to MongoDB")
+    
+    # 3. Start Background Poller
+    asyncio.create_task(run_poller())
 
 @app.on_event("shutdown")
 def shutdown_db_client():

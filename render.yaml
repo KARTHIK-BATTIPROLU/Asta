@@ -1,5 +1,5 @@
 services:
-  # 1. FastAPI Backend
+  # 1. FastAPI Backend (Includes Background Worker)
   - type: web
     name: asta-backend
     env: python
@@ -18,28 +18,6 @@ services:
         sync: false
       - key: TELEGRAM_CHAT_ID
         sync: false
-
-  # 2. Key/Reminder Worker
-  - type: worker
-    name: asta-worker
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: python -m reminder_agent.poller
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.7
-      - fromService:
-          name: asta-backend
-          type: web
-          envVar: MONGO_URI
-      - fromService:
-          name: asta-backend
-          type: web
-          envVar: TELEGRAM_TOKEN
-      - fromService:
-          name: asta-backend
-          type: web
-          envVar: TELEGRAM_CHAT_ID
 
   # 3. React Frontend (Static Site)
   - type: static
