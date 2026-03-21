@@ -1,0 +1,28 @@
+2026-03-22 00:29:00,937 - reminder_agent.config - INFO - MongoDB connected
+INFO:     Started server process [27976]
+INFO:     Waiting for application startup.
+2026-03-22 00:29:00,946 - ASTA_Main - INFO - Starting up ASTA Backend...
+2026-03-22 00:29:00,946 - backend.app.db.mongo - INFO - Connecting to MongoDB at asta-jarvis-cluster.a399efa.mongodb.net/?appName=Asta-Jarvis-Cluster...
+2026-03-22 00:29:01,462 - backend.app.db.mongo - INFO - Connected to MongoDB successfully.
+2026-03-22 00:29:01,462 - ASTA_Main - INFO - Connected to MongoDB
+2026-03-22 00:29:01,462 - ASTA_Main - INFO - Background Poller STARTED.
+2026-03-22 00:29:01,462 - ASTA_Main - INFO - Registered Routes:
+2026-03-22 00:29:01,463 - ASTA_Main - INFO - /openapi.json -> {'GET', 'HEAD'}
+2026-03-22 00:29:01,463 - ASTA_Main - INFO - /docs -> {'GET', 'HEAD'}
+2026-03-22 00:29:01,463 - ASTA_Main - INFO - /docs/oauth2-redirect -> {'GET', 'HEAD'}
+2026-03-22 00:29:01,463 - ASTA_Main - INFO - /redoc -> {'GET', 'HEAD'}
+2026-03-22 00:29:01,463 - ASTA_Main - INFO - / -> {'GET', 'HEAD'}
+2026-03-22 00:29:01,463 - ASTA_Main - INFO - /health -> {'GET', 'HEAD'}
+2026-03-22 00:29:01,463 - ASTA_Main - INFO - /debug -> {'GET'}
+2026-03-22 00:29:01,463 - ASTA_Main - INFO - /debug/routes -> {'GET'}
+2026-03-22 00:29:01,463 - ASTA_Main - INFO - /api/health -> {'GET'}
+2026-03-22 00:29:01,463 - ASTA_Main - INFO - /api/test -> {'GET'}
+2026-03-22 00:29:01,463 - ASTA_Main - INFO - /api/chat -> {'POST'}
+2026-03-22 00:29:01,463 - ASTA_Main - INFO - /api/voice -> {'POST'}
+2026-03-22 00:29:01,463 - ASTA_Main - INFO - Poller tick (cycle 0)...
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8008 (Press CTRL+C to quit)
+INFO:     127.0.0.1:54451 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54459 - "HEAD /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54460 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54461 - "GET /debug/routes HTTP/1.1" 200 OK

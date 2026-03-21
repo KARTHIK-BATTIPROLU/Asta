@@ -129,6 +129,11 @@ async def startup_event():
     # 3. Start Poller
     await poller_manager.start()
 
+    # 4. Debug: Print Routes
+    logger.info("Registered Routes:")
+    for route in app.routes:
+         logger.info(f"{route.path} -> {route.methods}")
+
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -166,6 +171,14 @@ def debug():
         "polling_enabled": getattr(config, "POLLING_ENABLED", "unknown"),
         "routes_mounted": [route.path for route in app.routes]
     }
+
+@app.get("/debug/routes")
+def debug_routes():
+    """List all registered routes for debugging."""
+    return [
+        {"path": route.path, "methods": list(route.methods)}
+        for route in app.routes
+    ]
 
 # Mount API Router
 app.include_router(router, prefix="/api")
