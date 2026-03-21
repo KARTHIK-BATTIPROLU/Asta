@@ -1,4 +1,6 @@
-import base64
+import os
+
+content = r'''import base64
 import logging
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File
@@ -97,3 +99,9 @@ async def voice_endpoint(file: UploadFile = File(...)):
     except Exception as e:
         logger.error(f"Voice error: {e}")
         return {"reply": "Sorry, voice processing failed."}
+'''
+
+with open('backend/app/api/routes.py', 'w', encoding='utf-8') as f:
+    f.write(content)
+
+print(f"Successfully overwrote backend/app/api/routes.py with {len(content)} chars.")

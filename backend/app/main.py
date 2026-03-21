@@ -11,13 +11,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Import router securely after logger is configured
-try:
-    from backend.app.api.routes import router
-    logger.info("Imported router successfully.")
-except Exception as e:
-    logger.error(f"Failed to import router: {e}")
-    # Create empty router to prevent app crash but log loudly
-    router = APIRouter()
+# from backend.app.api.routes import router
+# We use standard import now as per requirement
+from backend.app.api.routes import router
 
 app = FastAPI(title="ASTA API")
 
