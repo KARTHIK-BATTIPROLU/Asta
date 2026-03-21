@@ -17,7 +17,8 @@ async def process_reminders():
     """
     Minimal polling logic.
     """
-    logger.info("Polling...")
+    # Reduced logging noise
+    # logger.info("Polling...")
 
     # 0. Recover stale reminders
     mongo_handler.recover_stale_reminders()

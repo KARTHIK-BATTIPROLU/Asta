@@ -11,6 +11,9 @@ class Config:
     MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
     DB_NAME = "asta_db"
     COLLECTION_NAME = "reminders"
+    # Poller config
+    POLLING_ENABLED = os.getenv("POLLING_ENABLED", "true").lower() == "true"
+    DEBUG_POLLING = os.getenv("DEBUG_POLLING", "false").lower() == "true"
     # Using a fast model for latency
     MODEL_NAME = "llama-3.3-70b-versatile"
 
