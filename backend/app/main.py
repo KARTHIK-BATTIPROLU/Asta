@@ -66,15 +66,22 @@ def shutdown_db_client():
         MongoDB.client.close()
         logger.info("Closed MongoDB connection")
 
-# Health Check
-@app.get("/health")
-def health_check():
-    return {"status": "ok", "service": "ASTA API", "version": "1.0.0"}
-
-# Root Endpoint (For Render ping)
 @app.get("/")
 def root():
-    return {"status": "alive", "message": "ASTA API is running"}
+    """
+    Root endpoint to verify the API is running.
+    """
+    return {
+        "status": "alive",
+        "message": "ASTA API is running"
+    }
+
+@app.get("/health")
+def health_check():
+    """
+    Health check endpoint for monitoring.
+    """
+    return {"status": "ok"}
 
 # Include Routes
 app.include_router(router, prefix="/api")
