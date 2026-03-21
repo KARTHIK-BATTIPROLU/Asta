@@ -1,15 +1,23 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
-from backend.app.api.routes import router
-from backend.app.config import config
-from backend.app.db.mongo import MongoDB
 import logging
 import asyncio
+from backend.app.config import config
+from backend.app.db.mongo import MongoDB
 from reminder_agent.poller import process_reminders
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Import router securely after logger is configured
+try:
+    from backend.app.api.routes import router
+    logger.info("Imported router successfully.")
+except Exception as e:
+    logger.error(f"Failed to import router: {e}")
+    # Create empty router to prevent app crash but log loudly
+    router = APIRouter()
 
 app = FastAPI(title="ASTA API")
 
@@ -61,12 +69,22 @@ def shutdown_db_client():
 # Health Check
 @app.get("/api/health")
 def health_check():
-    return {"status": "ok", "service": "ASTA API"}
+    return {"status": "ok", "service": "ASTA API", "version": "1.0.0"}
+
+# Root Endpoint (For Render ping)
+@app.get("/")
+def root():
+    return {"status": "alive", "message": "ASTA API is running"}
 
 # Include Routes
 app.include_router(router, prefix="/api")
 
 if __name__ == "__main__":
     import uvicorn
+    # Add project root to sys.path to ensure module resolution works
+    import sys
+    import os
+    sys.path.append(os.getcwd())
+    
     logger.info("Starting ASTA API server...")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("backend.app.main:app", host="0.0.0.0", port=8000, reload=True)
