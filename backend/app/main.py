@@ -5,18 +5,28 @@ if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 import logging
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, Request, HTTPException, Security, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, ConfigDict
+from typing import List, Optional, Any, Union
 from backend.app.config import config
 from backend.app.db.mongo import MongoDB
 from backend.app.db.database import db_manager
 from backend.app.api.ws_routes import router as ws_router
 from backend.app.api.routes import router as api_router
 from backend.app.core.registry import registry
+from backend.app.core.circuit_breaker import status_registry
 from backend.app.services.embedding import EmbeddingService
+from backend.app.services.memory_orchestrator import orchestrator
+from backend.app.services.llm_service import stream_llm_response
 from starlette.middleware.base import BaseHTTPMiddleware
 from redis import asyncio as aioredis
 import time, os
+import uuid
+from fastapi.responses import StreamingResponse
+import json
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("ASTA_MVE")
@@ -41,6 +51,87 @@ async def tat_middleware(request, call_next):
 
 app.include_router(ws_router)
 app.include_router(api_router, prefix="/api")
+
+security = HTTPBearer()
+
+class ChatCompletionMessage(BaseModel):
+    role: str
+    content: Union[str, List[Any]]
+
+    model_config = ConfigDict(extra='allow')
+
+class ChatCompletionRequest(BaseModel):
+    model: str
+    messages: List[ChatCompletionMessage]
+    stream: Optional[bool] = False
+    temperature: Optional[float] = 1.0
+    user: Optional[str] = "openclaw_default"
+
+    model_config = ConfigDict(extra='allow')
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)):
+    if credentials.credentials != "asta-local-key":
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return credentials.credentials
+
+@app.post("/v1/chat/completions")
+async def chat_completions_adapter(request: ChatCompletionRequest):
+    # 1. CLEAN THE PROMPT
+    raw_content = request.messages[-1].content
+    if isinstance(raw_content, list):
+        user_query = next((item['text'] for item in raw_content if item.get('type') == 'text'), str(raw_content))
+    else:
+        user_query = raw_content
+    
+    if "]" in user_query:
+        user_query = user_query.split("]")[-1].strip()
+
+    session_id = request.user or "openclaw_default"
+
+    try:
+        # 2. Trigger Memory
+        context = await orchestrator.cross_tier_retrieve(user_query, top_k=3)
+        memory_mode = status_registry.get_memory_mode()
+        
+        # 3. STREAMING GENERATOR (The Fix)
+        async def event_generator():
+            full_text = ""
+            async for chunk in stream_llm_response(
+                user_message=user_query,
+                session_id=session_id,
+                rag_context=context,
+                health_status=memory_mode
+            ):
+                if chunk:
+                    full_text += chunk
+                    # Format exactly like an OpenAI stream chunk
+                    chunk_data = {
+                        "id": f"chatcmpl-{uuid.uuid4()}",
+                        "object": "chat.completion.chunk",
+                        "model": request.model,
+                        "choices": [{"index": 0, "delta": {"content": chunk}, "finish_reason": None}]
+                    }
+                    yield f"data: {json.dumps(chunk_data)}\n\n"
+            
+            print(f"\n[STREAM SUCCESS] ASTA sent: {full_text[:50]}...")
+            yield "data: [DONE]\n\n"
+
+        # 4. RETURN THE STREAM
+        if request.stream:
+            return StreamingResponse(event_generator(), media_type="text/event-stream")
+        else:
+            # Fallback if it somehow asks for non-streamed
+            return {
+                "id": f"chatcmpl-{uuid.uuid4()}",
+                "object": "chat.completion",
+                "model": request.model,
+                "choices": [{"message": {"role": "assistant", "content": "Stream fallback triggered."}}]
+            }
+
+    except Exception as e:
+        print(f"BRIDGE CRASH: {str(e)}")
+        return {"choices": [{"message": {"role": "assistant", "content": f"System Error: {str(e)}" }}]}
+    
 
 @app.on_event("startup")
 async def startup_event():
