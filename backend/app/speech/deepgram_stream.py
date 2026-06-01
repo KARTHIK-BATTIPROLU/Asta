@@ -1,4 +1,4 @@
-﻿import asyncio
+import asyncio
 import logging
 from importlib import import_module
 from typing import Tuple

@@ -1,168 +1,194 @@
-from __future__ import annotations
+"""
+Cache Service - Simple caching layer
+Wraps Redis or provides in-memory fallback
+"""
 
-import asyncio
-import json
 import logging
-import os
-import time
-import hashlib
-import importlib
-from typing import Any, Optional
+from typing import Optional, Any, Dict
+import json
 
 logger = logging.getLogger(__name__)
 
 
 class CacheService:
-    """Redis-first cache with in-memory TTL fallback."""
-
-    _redis = None
-    _enabled = False
-    _memory: dict[str, tuple[float, str]] = {}
-    _hits = 0
-    _misses = 0
-
-    @staticmethod
-    def hash_key(raw: str) -> str:
-        return hashlib.sha1((raw or "").encode("utf-8")).hexdigest()
-
+    """
+    Simple cache service with Redis backend or in-memory fallback
+    Supports both instance and class-level methods for backward compatibility
+    """
+    
+    _instance = None
+    
+    def __init__(self):
+        self._redis = None
+        self._memory_cache: Dict[str, Any] = {}
+        self._initialized = False
+    
     @classmethod
-    def _namespaced_key(cls, namespace: str, key: str) -> str:
-        ns = (namespace or "default").strip().lower()
-        return f"{ns}:{key}"
-
+    async def get_instance(cls):
+        """Get singleton instance"""
+        if cls._instance is None:
+            cls._instance = CacheService()
+            await cls._instance.initialize()
+        return cls._instance
+    
     @classmethod
-    async def connect(cls):
-        redis_url = os.getenv("REDIS_URL", "").strip()
-        if not redis_url:
-            logger.info("[CACHE] REDIS_URL missing, using in-memory cache fallback")
-            cls._enabled = True
-            return
-
-        try:
-            redis = importlib.import_module("redis.asyncio")
-            cls._redis = redis.from_url(redis_url, encoding="utf-8", decode_responses=True)
-            await cls._redis.ping()
-            cls._enabled = True
-            logger.info("[CACHE] Redis connected")
-        except Exception as exc:
-            logger.warning("[CACHE] Redis unavailable, fallback to memory cache: %s", exc)
-            cls._redis = None
-            cls._enabled = True
-
+    async def get_json(cls, key: str) -> Optional[Dict]:
+        """Class method to get JSON value"""
+        instance = await cls.get_instance()
+        return await instance.get(key)
+    
     @classmethod
-    async def close(cls):
-        if cls._redis is not None:
-            await cls._redis.aclose()
-        cls._redis = None
-
-    @classmethod
-    async def get_json(cls, key: str) -> Optional[Any]:
-        if not cls._enabled:
-            return None
-
-        if cls._redis is not None:
-            try:
-                raw = await cls._redis.get(key)
-                if not raw:
-                    cls._misses += 1
-                    return None
-                cls._hits += 1
-                return json.loads(raw)
-            except Exception:
-                cls._misses += 1
-                return None
-
-        item = cls._memory.get(key)
-        if not item:
-            cls._misses += 1
-            return None
-        expires_at, payload = item
-        if expires_at < time.time():
-            cls._memory.pop(key, None)
-            cls._misses += 1
-            return None
-        try:
-            cls._hits += 1
-            return json.loads(payload)
-        except Exception:
-            cls._misses += 1
-            return None
-
-    @classmethod
-    async def set_json(cls, key: str, value: Any, ttl_seconds: int = 300):
-        if not cls._enabled:
-            return
-
-        payload = json.dumps(value, default=str)
-        ttl_seconds = max(1, int(ttl_seconds))
-
-        if cls._redis is not None:
-            try:
-                await cls._redis.set(key, payload, ex=ttl_seconds)
-                return
-            except Exception:
-                pass
-
-        cls._memory[key] = (time.time() + ttl_seconds, payload)
-
-    @classmethod
-    async def get_or_set_json(cls, key: str, producer_coro, ttl_seconds: int = 300):
-        cached = await cls.get_json(key)
-        if cached is not None:
-            return cached
-        value = await producer_coro()
-        await cls.set_json(key, value, ttl_seconds)
-        return value
-
-    @classmethod
-    async def get_embedding_cache(cls, text: str):
-        key = cls._namespaced_key("embedding", cls.hash_key(text))
-        return await cls.get_json(key)
-
-    @classmethod
-    async def set_embedding_cache(cls, text: str, embedding: Any, ttl_seconds: int = 86400):
-        key = cls._namespaced_key("embedding", cls.hash_key(text))
-        await cls.set_json(key, embedding, ttl_seconds)
-
-    @classmethod
-    async def get_retrieval_cache(cls, query: str, top_k: int):
-        key = cls._namespaced_key("retrieval", cls.hash_key(f"{query}|{top_k}"))
-        return await cls.get_json(key)
-
-    @classmethod
-    async def set_retrieval_cache(cls, query: str, top_k: int, results: Any, ttl_seconds: int = 300):
-        key = cls._namespaced_key("retrieval", cls.hash_key(f"{query}|{top_k}"))
-        await cls.set_json(key, results, ttl_seconds)
-
-    @classmethod
-    async def get_session_cache(cls, session_id: str):
-        key = cls._namespaced_key("session", session_id)
-        return await cls.get_json(key)
-
-    @classmethod
-    async def set_session_cache(cls, session_id: str, session_data: Any, ttl_seconds: int = 900):
-        key = cls._namespaced_key("session", session_id)
-        await cls.set_json(key, session_data, ttl_seconds)
-
+    async def set_json(cls, key: str, value: Dict, ttl: int = 3600, ttl_seconds: int = None):
+        """Class method to set JSON value (supports both ttl and ttl_seconds for backward compatibility)"""
+        instance = await cls.get_instance()
+        actual_ttl = ttl_seconds if ttl_seconds is not None else ttl
+        await instance.set(key, value, actual_ttl)
+    
     @classmethod
     async def delete_session_cache(cls, session_id: str):
-        key = cls._namespaced_key("session", session_id)
-        if cls._redis is not None:
-            try:
-                await cls._redis.delete(key)
-            except Exception:
-                pass
-        cls._memory.pop(key, None)
+        """Class method to delete session cache"""
+        instance = await cls.get_instance()
+        await instance.delete(f"session:{session_id}")
+    
+    async def initialize(self):
+        """Initialize cache connection"""
+        if self._initialized:
+            return
+        
+        try:
+            from backend.app.core.registry import registry
+            self._redis = registry.get("redis")
+            
+            if self._redis:
+                # Test connection
+                await self._redis.ping()
+                logger.info("CacheService: Using Redis backend")
+            else:
+                logger.warning("CacheService: Redis not available, using in-memory cache")
+            
+            self._initialized = True
+        except Exception as e:
+            logger.warning(f"CacheService: Failed to connect to Redis: {e}, using in-memory cache")
+            self._redis = None
+            self._initialized = True
+    
+    async def get(self, key: str) -> Optional[Any]:
+        """Get value from cache"""
+        if not self._initialized:
+            await self.initialize()
+        
+        try:
+            if self._redis:
+                value = await self._redis.get(key)
+                if value:
+                    try:
+                        return json.loads(value)
+                    except:
+                        return value
+                return None
+            else:
+                return self._memory_cache.get(key)
+        except Exception as e:
+            logger.error(f"CacheService.get error: {e}")
+            return None
+    
+    async def set(self, key: str, value: Any, ttl: int = 3600):
+        """Set value in cache with TTL in seconds"""
+        if not self._initialized:
+            await self.initialize()
+        
+        try:
+            if self._redis:
+                if isinstance(value, (dict, list)):
+                    value = json.dumps(value)
+                await self._redis.setex(key, ttl, value)
+            else:
+                self._memory_cache[key] = value
+        except Exception as e:
+            logger.error(f"CacheService.set error: {e}")
+    
+    async def delete(self, key: str):
+        """Delete key from cache"""
+        if not self._initialized:
+            await self.initialize()
+        
+        try:
+            if self._redis:
+                await self._redis.delete(key)
+            else:
+                self._memory_cache.pop(key, None)
+        except Exception as e:
+            logger.error(f"CacheService.delete error: {e}")
+    
+    async def exists(self, key: str) -> bool:
+        """Check if key exists in cache"""
+        if not self._initialized:
+            await self.initialize()
+        
+        try:
+            if self._redis:
+                return await self._redis.exists(key) > 0
+            else:
+                return key in self._memory_cache
+        except Exception as e:
+            logger.error(f"CacheService.exists error: {e}")
+            return False
+    
+    async def clear(self):
+        """Clear all cache (use with caution)"""
+        if not self._initialized:
+            await self.initialize()
+        
+        try:
+            if self._redis:
+                # Don't clear entire Redis, just log warning
+                logger.warning("CacheService.clear: Not clearing Redis (shared resource)")
+            else:
+                self._memory_cache.clear()
+        except Exception as e:
+            logger.error(f"CacheService.clear error: {e}")
+    
+    async def get_many(self, keys: list) -> Dict[str, Any]:
+        """Get multiple values at once"""
+        if not self._initialized:
+            await self.initialize()
+        
+        result = {}
+        for key in keys:
+            value = await self.get(key)
+            if value is not None:
+                result[key] = value
+        return result
+    
+    async def set_many(self, items: Dict[str, Any], ttl: int = 3600):
+        """Set multiple values at once"""
+        if not self._initialized:
+            await self.initialize()
+        
+        for key, value in items.items():
+            await self.set(key, value, ttl)
+    
+    async def increment(self, key: str, amount: int = 1) -> int:
+        """Increment a counter"""
+        if not self._initialized:
+            await self.initialize()
+        
+        try:
+            if self._redis:
+                return await self._redis.incr(key, amount)
+            else:
+                current = self._memory_cache.get(key, 0)
+                new_value = current + amount
+                self._memory_cache[key] = new_value
+                return new_value
+        except Exception as e:
+            logger.error(f"CacheService.increment error: {e}")
+            return 0
+    
+    async def decrement(self, key: str, amount: int = 1) -> int:
+        """Decrement a counter"""
+        return await self.increment(key, -amount)
 
-    @classmethod
-    def get_cache_stats(cls) -> dict[str, Any]:
-        total = cls._hits + cls._misses
-        hit_rate = (cls._hits / total) if total > 0 else 0.0
-        return {
-            "enabled": bool(cls._enabled),
-            "backend": "redis" if cls._redis is not None else "memory",
-            "hits": cls._hits,
-            "misses": cls._misses,
-            "hit_rate": hit_rate,
-            "memory_items": len(cls._memory),
-        }
+
+# Global singleton instance
+cache_service = CacheService()

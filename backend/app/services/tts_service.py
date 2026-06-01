@@ -11,7 +11,7 @@ async def synthesize_speech_stream(text: str) -> AsyncGenerator[bytes, None]:
     }
     payload = {"text": text}
     params = {
-        "model": "aura-asteria-en",
+        "model": "aura-angus-en",
         "encoding": "linear16",
         "sample_rate": 24000
     }

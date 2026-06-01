@@ -10,6 +10,10 @@ pytz
 deepgram-sdk>=6.0.1,<7.0.0
 python-multipart
 websockets>=10.0
+# Wake Word Detection
+openwakeword
+tflite-runtime
+PyAudio
 # AI
 langchain
 langgraph
@@ -23,7 +27,8 @@ google-auth-oauthlib
 sentence-transformers
 pinecone
 rapidfuzz
-redis
+redis==5.1.0
+hiredis==3.0.0
 celery
 tiktoken
 torch

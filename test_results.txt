@@ -1,0 +1,32 @@
+ASTA Implementation Test Results
+============================================================
+
+[PASS] Auth Middleware
+[PASS] State Schemas
+[PASS] LLM Router
+[FAIL] Supervisor: cannot import name 'get_async_db' from 'backend.app.db.async_mongo' (C:\Users\Ka
+[PASS] Notion Service
+[PASS] Research Service
+[PASS] Weather Service
+[PASS] Sheets Service
+[PASS] Image Service
+[PASS] Scheduler Service
+[PASS] Preferences Service
+[PASS] L1 Cache Service
+[PASS] Routine Graph
+[PASS] Research Graph
+[FAIL] LinkedIn Graph: cannot import name 'get_async_db' from 'backend.app.db.async_mongo' (C:\Users\Ka
+[FAIL] YouTube Graph: cannot import name 'get_async_db' from 'backend.app.db.async_mongo' (C:\Users\Ka
+[FAIL] Instagram Graph: cannot import name 'get_async_db' from 'backend.app.db.async_mongo' (C:\Users\Ka
+[PASS] Habit Graph
+[PASS] Memory Engine
+[FAIL] API Routes: No module named 'backend.app.services.cache_service'
+[FAIL] Preferences API: No module named 'backend.app.services.cache_service'
+[FAIL] Content API: No module named 'backend.app.services.cache_service'
+[FAIL] Health API: No module named 'backend.app.services.cache_service'
+
+============================================================
+Total: 23
+Passed: 15
+Failed: 8
+Success Rate: 65.2%

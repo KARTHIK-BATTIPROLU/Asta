@@ -1,0 +1,7 @@
+{
+  "type": "news",
+  "topics": ["artificial intelligence", "LangChain LangGraph", "tech India", "startup India", "programming", "world tech news"],
+  "sources_preferred": ["techcrunch.com", "theverge.com", "reuters.com", "ndtv.com"],
+  "max_items": 5,
+  "style": "1 headline + 1 sentence summary per item"
+}

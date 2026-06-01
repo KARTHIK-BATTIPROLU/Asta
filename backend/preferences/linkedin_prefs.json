@@ -1,0 +1,13 @@
+{
+  "type": "linkedin",
+  "tone": "thought leader, conversational, direct, no corporate jargon",
+  "writing_style": "short punchy paragraphs, max 3 lines per paragraph",
+  "audience": "tech professionals, students, founders, builders",
+  "niche_topics": ["AI", "LangGraph", "productivity", "building in public", "career", "tech India"],
+  "post_format": "strong hook (no I as first word) → 3-4 paragraphs → question or CTA",
+  "hashtag_count": 5,
+  "emoji_usage": "minimal, 1-2 max",
+  "avoid": ["buzzwords", "humble bragging", "vague motivation posts"],
+  "hook_styles": ["controversial take", "surprising stat", "personal story opener", "bold claim"],
+  "cta_styles": ["question to audience", "follow for more", "share your experience"]
+}

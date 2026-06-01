@@ -1,57 +1,7 @@
-import asyncioimport asyncio
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-llm_queue = LLMQueueManager()# Global singleton                await asyncio.sleep(1) # Prevent tight loop on unexpected errors                logger.error(f"[LLM_Queue] Worker encountered error: {e}")            except Exception as e:                break            except asyncio.CancelledError:                    self.queue.task_done()                finally:                    logger.error(f"[LLM_Queue] Task execution failed: {e}")                except Exception as e:                    await task_func(*args, **kwargs)                    logger.debug(f"[LLM_Queue] Executing task: {task_func.__name__}")                try:                task_func, args, kwargs = await self.queue.get()            try:        while True:    async def _worker(self):        await self.queue.put((task_func, args, kwargs))        """        Add a task to the background queue to be executed sequentially.        """    async def enqueue(self, task_func: Callable[..., Any], *args, **kwargs):            logger.info("[LLM_Queue] Background task worker stopped.")            self.worker_task = None                pass            except asyncio.CancelledError:                await self.worker_task            try:            self.worker_task.cancel()        if self.worker_task:    async def stop(self):            logger.info("[LLM_Queue] Background task worker started.")            self.worker_task = asyncio.create_task(self._worker())        if not self.worker_task:    def start(self):        self.worker_task = None        self.queue = asyncio.Queue()    def __init__(self):class LLMQueueManager:logger = logging.getLogger("LLM_Queue")from typing import Callable, Anyimport loggingimport logging
+import asyncio
+import logging
 from typing import Callable, Any
+from backend.app.core.task_registry import TaskRegistry
 
 logger = logging.getLogger("LLM_Queue")
 
@@ -62,7 +12,10 @@ class LLMQueueManager:
 
     def start(self):
         if not self.worker_task:
-            self.worker_task = asyncio.create_task(self._worker())
+            self.worker_task = TaskRegistry.track(
+                self._worker(),
+                name="llm_queue_worker",
+            )
             logger.info("[LLM_Queue] Background task worker started.")
 
     async def stop(self):

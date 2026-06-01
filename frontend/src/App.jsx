@@ -908,9 +908,16 @@ function App() {
       }, 500);
       return;
     }
-    
-    // 3. Send text payload directly
+
+    // 3. Send text input
     sendControlMessage({ type: 'text_input', text: textMsg });
+  };
+
+  // Clean message content - remove raw JSON tool calls from display
+  const cleanMessage = (text) => {
+    if (!text) return '';
+    // Remove raw JSON tool call blocks from display
+    return text.replace(/\{"action".*?\}/gs, '').trim();
   };
 
   return (
@@ -965,7 +972,7 @@ function App() {
             )}
             
             <div className="bubble">
-              {msg.content}
+              {msg.role === 'assistant' ? cleanMessage(msg.content) : msg.content}
             </div>
             
             {msg.role === 'user' && (

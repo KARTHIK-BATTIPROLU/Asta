@@ -42,9 +42,11 @@ class AsyncMongoDB:
                 config.MONGO_URI,
                 maxPoolSize=80,
                 minPoolSize=5,
-                serverSelectionTimeoutMS=5000,
-                connectTimeoutMS=5000,
-                socketTimeoutMS=10000,
+                serverSelectionTimeoutMS=20000,
+                connectTimeoutMS=20000,
+                socketTimeoutMS=30000,
+                maxIdleTimeMS=50000,
+                tlsAllowInvalidCertificates=True,
                 retryWrites=True,
             )
             cls.db = cls.client[config.DB_NAME]
@@ -106,3 +108,11 @@ class AsyncMongoDB:
             cls.client.close()
         cls.client = None
         cls.db = None
+
+
+# Helper function for dependency injection
+async def get_async_db():
+    """Get async MongoDB database instance"""
+    if AsyncMongoDB.db is None:
+        await AsyncMongoDB.connect()
+    return AsyncMongoDB.db

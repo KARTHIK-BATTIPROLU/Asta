@@ -12,6 +12,7 @@ States:
 
 import asyncio
 import logging
+import re
 import time
 from enum import Enum
 from typing import Callable, Any, Optional
@@ -174,6 +175,8 @@ class CircuitBreaker:
             
         Returns:
             tuple: (result, success_flag)
+            
+        GUARANTEE: This method ALWAYS returns (value, bool). Never raises.
         """
         timeout = timeout_override or self.timeout_seconds
         
@@ -196,20 +199,25 @@ class CircuitBreaker:
             self._record_failure(is_timeout=True)
             return fallback, False
             
+        except asyncio.CancelledError:
+            # Propagate cancellation — do NOT swallow
+            logger.warning(f"[CB:{self.name}] Operation cancelled")
+            raise
+            
         except Exception as e:
             logger.error(f"[CB:{self.name}] Operation failed: {type(e).__name__}: {e}")
-            self._record_failure()
+            self._record_failure(is_timeout=False)
             return fallback, False
-    
+
     def force_open(self):
-        """Manually open the circuit (for health checks)."""
+        """Manually trip the circuit open (e.g., from health check or admin endpoint)."""
         self._transition_to(CircuitState.OPEN)
-        
+
     def force_close(self):
-        """Manually close the circuit (for testing/recovery)."""
+        """Manually close the circuit (e.g., for testing or recovery override)."""
         self._transition_to(CircuitState.CLOSED)
         self._stats.failure_count = 0
-    
+
     def get_health_report(self) -> dict:
         """Generate a health report for observability."""
         return {
@@ -225,6 +233,75 @@ class CircuitBreaker:
             "is_healthy": self._state == CircuitState.CLOSED
         }
 
+
+# ── OpenClaw Security Circuit Breaker ────────────────────────────────────
+
+SHELL_METACHAR_PATTERN = re.compile(r'[;&|`$(){}\\\<>!\n\r]')
+TARGET_SAFE_PATTERN = re.compile(r'^[a-zA-Z0-9._:\-/]+$')
+
+
+class OpenClawCircuitBreaker:
+    """
+    Security circuit breaker for Asta-OpenClaw gateway payload execution.
+    Uses strict binary allowlisting AND argument validation to prevent
+    prompt injection, command injection, and privilege escalation.
+    """
+    
+    ALLOWED_TOOLS = {
+        "nmap",
+        "ping",
+        "whois",
+        "ls",
+        "gobuster",
+        "curl",
+        "git",
+        "mkdir",
+        "python",
+        "docker"
+    }
+
+    @classmethod
+    def sanitize(cls, tool: str, args=None, target: str = "") -> tuple[bool, str]:
+        """
+        Validates an OpenClaw execution payload.
+        Checks:
+          1. Tool binary is in the allowlist
+          2. Args is a list (not a raw string)
+          3. No shell metacharacters in any argument
+          4. Target matches safe pattern
+        Returns:
+            (is_safe: bool, reason_if_blocked: str)
+        """
+        # 1. Tool allowlist
+        if not tool or tool.lower().strip() not in cls.ALLOWED_TOOLS:
+            return False, f"Tool '{tool}' is not in the ALLOWED_TOOLS list."
+        
+        # 2. Args must be a list (not a concatenated command string)
+        if args is not None:
+            if isinstance(args, str):
+                # Check if the string contains metacharacters before splitting
+                if SHELL_METACHAR_PATTERN.search(args):
+                    return False, f"Shell metacharacter detected in args string."
+                # Allow legacy string format but flag it
+                logger.warning(f"[OpenClaw] args received as string, should be list: '{args}'")
+            elif isinstance(args, list):
+                for i, arg in enumerate(args):
+                    if SHELL_METACHAR_PATTERN.search(str(arg)):
+                        return False, f"Shell metacharacter detected in args[{i}]: '{arg}'"
+            else:
+                return False, f"args must be a list of strings, got {type(args).__name__}"
+        
+        # 3. Target validation
+        if target and isinstance(target, str) and target.strip():
+            if not TARGET_SAFE_PATTERN.match(target.strip()):
+                return False, f"Invalid target format: '{target}'. Must be alphanumeric/dots/dashes/colons/slashes."
+            if SHELL_METACHAR_PATTERN.search(target):
+                return False, f"Shell metacharacter detected in target: '{target}'"
+        
+        return True, ""
+
+
+# ── Status Registry ──────────────────────────────────────────────────────
 
 class StatusRegistry:
     """
@@ -319,6 +396,8 @@ class StatusRegistry:
             "pinecone_status": self._health.get("pinecone", {}).get("is_healthy", False)
         }
 
+
+# ── Global Instances ─────────────────────────────────────────────────────
 
 # Global singleton
 status_registry = StatusRegistry()

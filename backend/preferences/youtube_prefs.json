@@ -1,0 +1,12 @@
+{
+  "type": "youtube",
+  "channel_niche": "AI, LangGraph, productivity systems, tech career India",
+  "style": "educational but engaging, like a smart friend explaining",
+  "energy_level": "high",
+  "script_format": "hook_30s → story_context_90s → deep_content → key_takeaways → CTA",
+  "target_length_minutes": 10,
+  "hook_style": "start with the most interesting fact or question",
+  "broll_suggestions": true,
+  "include_timestamps": true,
+  "outro_style": "subscribe prompt + tease next video"
+}

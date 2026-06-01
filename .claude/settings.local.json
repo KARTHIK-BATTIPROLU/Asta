@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\\\.py$\")",
+      "Bash(python -c \"import pytest; print\\('pytest', pytest.__version__\\)\")",
+      "Bash(python -m pytest backend/tests/test_study_planner_logic.py -v)",
+      "Bash(python -m pytest backend/tests/test_study_planner_notion.py -v)",
+      "Bash(python -c \"from dotenv import load_dotenv; load_dotenv\\(\\); import asyncio; from backend.app.workflows.study_planner_notion import ensure_study_plan_page; print\\(asyncio.run\\(ensure_study_plan_page\\(\\)\\)\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"from dotenv import load_dotenv; load_dotenv\\(\\); import asyncio; from backend.app.workflows.study_planner_notion import ensure_study_plan_page; print\\('PAGE_ID:', asyncio.run\\(ensure_study_plan_page\\(\\)\\)\\)\")",
+      "Bash(python -m pytest backend/tests/ -v)",
+      "Bash(python -m backend.app.workflows.study_planner --mode text --action intake)",
+      "Bash(python -m backend.app.workflows.study_planner --action today)",
+      "Bash(python)",
+      "Bash(timeout 8 uvicorn backend.app.main:app --port 8001 --log-level info)",
+      "Bash(curl -s http://localhost:8001/health)",
+      "Bash(timeout 5 uvicorn backend.app.main:app --port 8001)",
+      "Bash(python -c \"from backend.app.workflows import study_planner; print\\('Study planner import OK'\\)\")",
+      "Bash(python -c \"from backend.app.api import ws_routes; print\\('ws_routes import OK'\\)\")",
+      "Bash(awk '{print $NF}')"
+    ]
+  }
+}

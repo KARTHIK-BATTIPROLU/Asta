@@ -1,135 +1,154 @@
-import collections
-import tiktoken
-import asyncio
+"""
+L1 Cache Service - Compatibility Layer
+Bridges old l1_manager calls to new memory layer
+"""
+
 import logging
-from backend.app.services.memory_orchestrator import orchestrator
+from typing import Optional, Dict, Any
+import sys
+import os
 
-logger = logging.getLogger("L1_Buffer")
+# Add memory layer to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-class SessionL1Cache:
-    def __init__(self, session_id: str, max_tokens: int = 2000):
+from memory.l1_cache import L1Cache
+
+logger = logging.getLogger(__name__)
+
+
+class SessionCache:
+    """Session-specific cache wrapper"""
+    
+    def __init__(self, session_id: str, l1_cache: L1Cache):
         self.session_id = session_id
-        self.max_tokens = max_tokens
-        self.buffer = collections.deque()
-        self.current_tokens = 0
-        self._lock = asyncio.Lock()
-        self._active_tasks = set()
-        
-        # L1.5 Speculative Layer
-        self.speculative_context = {}
-        self._speculative_lock = asyncio.Lock()
-
-        try:
-            self.encoder = tiktoken.get_encoding("cl100k_base")
-        except Exception:
-            self.encoder = tiktoken.get_encoding("gpt2")
-
-    def count_tokens(self, text: str) -> int:
-        if not text:
-            return 0
-        return len(self.encoder.encode(text))
-
-    async def set_speculative_data(self, key: str, data: str, ttl: int = 10, trigger_query: str = ""):
-        expires_at = asyncio.get_event_loop().time() + ttl
-        async with self._speculative_lock:
-            self.speculative_context[key] = {
-                "data": data,
-                "expires_at": expires_at,
-                "trigger_query": trigger_query
-            }
-        logger.info(f"[L1.5 Cache] Set speculative context for '{key}' (TTL: {ttl}s)")
-
-    async def get_speculative_data(self, key: str) -> dict | None:
-        async with self._speculative_lock:
-            if key in self.speculative_context:
-                record = self.speculative_context[key]
-                if asyncio.get_event_loop().time() < record["expires_at"]:
-                    logger.info(f"[L1.5 Cache] HIT for '{key}' (0ms delay)")
-                    return record
-                else:
-                    logger.info(f"[L1.5 Cache] EXPIRED for '{key}'")
-                    del self.speculative_context[key]
-        return None
-
-    async def append_turn(self, user_text: str, assistant_text: str):
-        # Calculate strict Tiktoken mapped bytes length
-        user_toks = await asyncio.to_thread(self.count_tokens, user_text)
-        assistant_toks = await asyncio.to_thread(self.count_tokens, assistant_text)
-        turn_toks = user_toks + assistant_toks
-
-        async with self._lock:
-            # In-Memory Register FIRST
-            new_turn = {
-                "user": user_text,
-                "assistant": assistant_text,
-                "tokens": turn_toks
-            }
-            self.buffer.append(new_turn)
-            self.current_tokens += turn_toks
-
-            # Sliding Window Math: Evict oldest until we are under max_tokens
-            while self.buffer and self.current_tokens > self.max_tokens:
-                popped_turn = self.buffer.popleft()
-                self.current_tokens -= popped_turn["tokens"]
-                await self._trigger_l2_eviction(popped_turn)
-
-        logger.info(f"[L1] Turn registered ({turn_toks} tx). L1 Pool: {self.current_tokens}/{self.max_tokens}")
-
-    async def _trigger_l2_eviction(self, turn: dict):
-        user_text = turn["user"]
-        assistant_text = turn["assistant"]
-        logger.info(f"[L1->L2] Evicting boundary turn ({turn['tokens']} tx) securely to MongoDB.")
-
-        async def _async_evict():
-            try:
-                content_payload = f"User: {user_text}\nASTA: {assistant_text}"
-                # 1. Pipeline hook: Triggers Extractive/Abstractive RAG seamlessly executing Autonomous Graph Extractions natively asynchronously.
-                await orchestrator.process_overflow(self.session_id, content_payload)
-            except Exception as e:
-                logger.error(f"[L2 Evict] Background sync failure: {e}", exc_info=True)
-
-        # Non-blocking event loop offload
-        task = asyncio.create_task(_async_evict())
-        self._active_tasks.add(task)
-        task.add_done_callback(self._active_tasks.discard)
-
-    def get_llm_history(self) -> list[dict]:
-        """Returns the O(1) natively formatted LLM conversation arrays."""
-        messages = []
-        for turn in self.buffer:
-            messages.append({"role": "user", "content": turn["user"]})
-            messages.append({"role": "assistant", "content": turn["assistant"]})
-        return messages
+        self.l1_cache = l1_cache
+    
+    async def set_speculative_data(self, key: str, value: Any, ttl: int = 300):
+        """Store speculative/prefetch data"""
+        cache_key = f"speculative:{self.session_id}:{key}"
+        await self.l1_cache.set(cache_key, value, ttl=ttl)
+    
+    async def get_speculative_data(self, key: str) -> Optional[Any]:
+        """Retrieve speculative data"""
+        cache_key = f"speculative:{self.session_id}:{key}"
+        return await self.l1_cache.get(cache_key)
+    
+    async def set(self, key: str, value: Any, ttl: int = 3600):
+        """Store session data"""
+        cache_key = f"session:{self.session_id}:{key}"
+        await self.l1_cache.set(cache_key, value, ttl=ttl)
+    
+    async def get(self, key: str) -> Optional[Any]:
+        """Retrieve session data"""
+        cache_key = f"session:{self.session_id}:{key}"
+        return await self.l1_cache.get(cache_key)
+    
+    def get_llm_history(self) -> list:
+        """
+        Get LLM conversation history for this session.
+        Returns empty list for now - history is managed by SessionManager.
+        """
+        # TODO: Integrate with SessionManager for proper history retrieval
+        return []
+    
+    async def append_turn(self, user_msg: str, assistant_msg: str):
+        """
+        Append a conversation turn to session history.
+        For now, this is a no-op as history is managed by SessionManager.
+        """
+        # TODO: Integrate with SessionManager for proper history storage
+        pass
 
 
-class L1BufferManager:
+class L1Manager:
+    """
+    L1 Cache Manager - Compatibility layer for legacy code
+    Wraps the new memory layer's L1Cache
+    """
+    
     def __init__(self):
-        # Global Uvicorn Dictionary Mapping {session_id -> SessionL1Cache}
-        self.sessions = {}
+        self._l1_cache: Optional[L1Cache] = None
+        self._initialized = False
+    
+    async def initialize(self):
+        """Initialize the L1 cache connection"""
+        if self._initialized:
+            return
+        
+        try:
+            from backend.app.config import settings
+            redis_url = settings.REDIS_URL or "redis://localhost:6379/0"
+            
+            self._l1_cache = L1Cache(redis_url=redis_url)
+            await self._l1_cache.connect()
+            self._initialized = True
+            logger.info("L1 Cache Manager initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize L1 Cache Manager: {e}")
+            # Create a mock cache for graceful degradation
+            self._l1_cache = None
+    
+    def get_session(self, session_id: str) -> SessionCache:
+        """Get a session-specific cache wrapper"""
+        if not self._initialized:
+            # Return a no-op cache if not initialized
+            return SessionCache(session_id, MockL1Cache())
+        
+        return SessionCache(session_id, self._l1_cache or MockL1Cache())
+    
+    async def set(self, key: str, value: Any, ttl: int = 3600):
+        """Set a global cache value"""
+        if self._l1_cache:
+            await self._l1_cache.set(key, value, ttl=ttl)
+    
+    async def get(self, key: str) -> Optional[Any]:
+        """Get a global cache value"""
+        if self._l1_cache:
+            return await self._l1_cache.get(key)
+        return None
+    
+    async def delete(self, key: str):
+        """Delete a cache key"""
+        if self._l1_cache:
+            await self._l1_cache.delete(key)
+    
+    async def close(self):
+        """Close the cache connection"""
+        if self._l1_cache:
+            await self._l1_cache.disconnect()
+            self._initialized = False
 
-    def get_session(self, session_id: str, max_tokens: int = 2000) -> SessionL1Cache:
-        if session_id not in self.sessions:
-            self.sessions[session_id] = SessionL1Cache(session_id, max_tokens)
-        return self.sessions[session_id]
 
-    async def clear_session(self, session_id: str):
-        if session_id in self.sessions:
-            # Force flush EVERYTHING as a single batch to L2 prior to deletion
-            session_cache = self.sessions[session_id]
-            if session_cache.buffer:
-                logger.info(f"[L1->L2] Batch evicting {len(session_cache.buffer)} remaining turns.")
-                
-                # Combine all remaining turns into one big payload
-                combined_payload = ""
-                for turn in session_cache.buffer:
-                    combined_payload += f"User: {turn['user']}\nASTA: {turn['assistant']}\n"
-                
-                try:
-                    import backend.app.services.memory_orchestrator as mo
-                    await mo.orchestrator.process_overflow(session_id, combined_payload.strip())
-                except Exception as e:
-                    logger.error(f"[L1 Eviction] Failed to batch flush session on close: {e}", exc_info=True)
-                    
-            del self.sessions[session_id]
+class MockL1Cache:
+    """Mock cache for graceful degradation when Redis is unavailable"""
+    
+    def __init__(self):
+        self._data: Dict[str, Any] = {}
+    
+    async def connect(self):
+        pass
+    
+    async def disconnect(self):
+        pass
+    
+    async def set(self, key: str, value: Any, ttl: int = 3600):
+        self._data[key] = value
+    
+    async def get(self, key: str) -> Optional[Any]:
+        return self._data.get(key)
+    
+    async def delete(self, key: str):
+        self._data.pop(key, None)
 
-l1_manager = L1BufferManager()
+
+# Global singleton instance
+l1_manager = L1Manager()
+
+
+# Auto-initialize on import (for backward compatibility)
+async def _auto_init():
+    await l1_manager.initialize()
+
+
+# Note: Actual initialization should happen in app startup
+# This is just for backward compatibility

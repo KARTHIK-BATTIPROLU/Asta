@@ -6,8 +6,15 @@ __pycache__/
 # Node
 node_modules/
 
-# Environment
+# Environment & Secrets
 .env
+.env.*
+serviceAccountKey.json
+*.pem
+*.key
 
 # MacOS
 .DS_Store
+
+# Generated
+/tmp/asta_images/

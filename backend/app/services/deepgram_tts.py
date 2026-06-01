@@ -19,7 +19,7 @@ async def text_to_speech(text: str) -> bytes:
         raise DeepgramTTSError("DEEPGRAM_API_KEY is missing")
 
     endpoint = "https://api.deepgram.com/v1/speak"
-    params = {"model": "aura-asteria-en", "encoding": "mp3"}
+    params = {"model": "aura-angus-en", "encoding": "mp3"}
     headers = {
         "Authorization": f"Token {config.DEEPGRAM_API_KEY}",
         "Content-Type": "application/json",

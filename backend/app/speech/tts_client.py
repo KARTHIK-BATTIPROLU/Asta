@@ -24,7 +24,7 @@ class DeepgramTTS:
 
         try:
             # Aura model options
-            options = {"model": "aura-asteria-en"} 
+            options = {"model": "aura-angus-en"} 
             
             response = self.client.speak.v("1").stream({"text": text}, options)
             

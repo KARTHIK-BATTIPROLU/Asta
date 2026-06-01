@@ -7,20 +7,28 @@ import inspect
 import hashlib
 from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime, timezone
-from pymongo import ASCENDING
 from asyncio import QueueEmpty
 from collections import OrderedDict
+from pymongo import ASCENDING
 
-from backend.app.db.mongo import MongoDB
-from backend.app.db.async_mongo import AsyncMongoDB
+from backend.app.db.database import db_manager
+from backend.app.core.task_registry import TaskRegistry
 from backend.app.config import config
 from backend.app.models.session_model import Session, Message, SessionSummary
 from backend.app.utils.summary_generator import generate_session_summary
 from backend.app.core.registry import registry
 from backend.app.services.cache_service import CacheService
-from backend.app.db.memory_handler import memory_handler
 
 logger = logging.getLogger(__name__)
+
+# Helper function for memory prefetch (HOOK 2)
+async def _fire_memory_prefetch(session_id: str, message: str):
+    """Fire memory prefetch in background - never let this crash the voice pipeline"""
+    try:
+        from memory import memory_engine
+        await memory_engine.on_user_message(session_id, message)
+    except Exception:
+        pass  # never let this crash the voice pipeline
 
 MAX_HISTORY_MESSAGES = 200
 EMBEDDING_CHUNK_SIZE = 20
@@ -184,7 +192,10 @@ class SessionManager:
             return
 
         cls._worker_running = True
-        cls._batch_worker_task = asyncio.create_task(cls._batch_processor())
+        cls._batch_worker_task = TaskRegistry.track(
+            cls._batch_processor(),
+            name="session_batch_processor",
+        )
         logger.info(
             "Session batch worker started (interval=%ss, batch_size=%s)",
             cls.BATCH_INTERVAL_SECONDS,
@@ -284,7 +295,7 @@ class SessionManager:
         async def _query_ids(collection) -> List[str]:
             cursor = collection.find(
                 {
-                    "status": {"$in": ["finalizing", "partial_sync"]},
+                    "status": {"$in": ["finalizing", "partial_sync", "pending_vector"]},
                     "updated_at": {"$lte": datetime.fromtimestamp(cutoff, tz=timezone.utc)},
                 },
                 {"session_id": 1, "_id": 0},
@@ -406,7 +417,7 @@ class SessionManager:
                 logger.info("Recovered session from MongoDB: %s", requested_session_id)
                 return requested_session_id
 
-            if not AsyncMongoDB.degraded_mode:
+            if not db_manager.degraded_mode:
                 logger.info("Requested session_id not found in MongoDB, creating new session (requested=%s)", requested_session_id)
                 return await cls._create_new_session()
 
@@ -448,6 +459,18 @@ class SessionManager:
         )
         await cls._cache_session_hot(new_session)
         await cls._upsert_session_header(sid, status="active")
+        
+        # HOOK 1 - Memory context fetch on session start
+        try:
+            from memory import memory_engine
+            # For new sessions, we don't have initial user input yet, so use empty context
+            ctx = await memory_engine.get_context_for_session(sid, "", "general")
+            # Store memory context in session for later use
+            new_session.memory_context = memory_engine.format_context_for_prompt(ctx)
+        except Exception as e:
+            logging.warning(f"Memory context fetch failed for new session {sid}: {e}")
+            new_session.memory_context = ""
+        
         logger.info("Started session: %s", sid)
         return sid
 
@@ -473,17 +496,18 @@ class SessionManager:
         return session_id
 
     @classmethod
-    def get_session(cls, session_id: str) -> Optional[Session]:
+    async def get_session(cls, session_id: str) -> Optional[Session]:
         cached = cls._cache_get(session_id)
         if cached is not None:
             return cached
 
-        collection = registry.get("db").get_collection(config.SESSIONS_COLLECTION)
-        if collection is None:
+        try:
+            collection = db_manager.get_collection(config.SESSIONS_COLLECTION)
+        except RuntimeError:
             return None
 
-        doc = MongoDB.safe_db_call(
-            lambda: collection.find_one(
+        try:
+            doc = await collection.find_one(
                 {"session_id": session_id},
                 {
                     "_id": 0,
@@ -511,7 +535,10 @@ class SessionManager:
                     "embedding": 1,
                 },
             )
-        )
+        except Exception as e:
+            logger.error("[SM] get_session DB call failed: %s", e)
+            return None
+
         if not doc:
             return None
         restored = cls._session_from_doc(doc)
@@ -551,6 +578,14 @@ class SessionManager:
         persisted = await cls._persist_message(session_id, session, message)
         if not persisted:
             logger.warning("Message persistence failed for session %s", session_id)
+        
+        # HOOK 2 - Memory prefetch on user message (non-blocking)
+        if role == "user":  # Only prefetch on user messages
+            import asyncio
+            asyncio.create_task(
+                _fire_memory_prefetch(session_id, content)
+            )
+        
         await cls._cache_session_hot(session)
 
     @classmethod
@@ -562,7 +597,7 @@ class SessionManager:
         now = datetime.now(timezone.utc)
         
         if not session:
-            session = cls.get_session(session_id)
+            session = await cls.get_session(session_id)
             if not session:
                 logger.warning("Session %s not found for finalization", session_id)
                 return None
@@ -630,33 +665,23 @@ class SessionManager:
                 session.chunk_count = len(chunk_embeddings)
                 session.importance_score = importance_score
 
-                # Try Pinecone upsert *before* marking complete in Mongo
-                pinecone_success = False
-                vector_search = registry.get("vector")
-                
-                if embedding and vector_search:
-                    await asyncio.to_thread(memory_handler.store_memory, session_id, summary_text, embedding)
-                    try:
-                        pinecone_id = f"{session_id}::summary"
-                        pinecone_meta = {
-                            "session_id": session_id,
-                            "type": "summary",
-                            "summary": summary_text[:1000] if summary_text else "unknown",
-                            "topic": topic if topic is not None else "general",
-                            "tags": tags if tags is not None and len(tags) > 0 else ["unknown"],
-                        }
-                        await vector_search.upsert(id=pinecone_id, vector=embedding, metadata=pinecone_meta)
-                        logger.info(f"[RAG] Pinecone session upsert success: {pinecone_id}")
-                        pinecone_success = True
-                    except Exception as pc_err:
-                        logger.warning(f"[RAG] Pinecone session upsert failed (non-blocking): {pc_err}")
-                        pinecone_success = False
-                else:
-                    pinecone_success = True if not vector_search else False
+                # ── Atomic 3-phase sync via MemorySaga ──────────────────
+                # The Saga writes to MongoDB outbox first (commit point),
+                # then coordinates Pinecone + Neo4j with automatic retry.
+                from memory.memory_saga import MemorySaga
 
-                final_status = "completed" if pinecone_success else "partial_sync"
+                saga = MemorySaga(
+                    session_id=session_id,
+                    summary=summary_text,
+                    embedding=embedding or [],
+                    raw_segment="",
+                    source="end_session",
+                )
+                saga_ok = await saga.execute()
+
+                final_status = "completed" if saga_ok else "partial_sync"
                 
-                # Update MongoDB (session header) with final status
+                # Update MongoDB session header with enriched metadata
                 await cls._with_sessions_collection(
                     lambda collection: collection.update_one(
                         {"session_id": session_id},
@@ -678,14 +703,24 @@ class SessionManager:
             except Exception as e:
                 logger.error("Embedding/Upsert failed for session %s: %s", session_id, e)
         
+        # HOOK 3 - Memory save on session end (before cleanup)
+        try:
+            from memory import memory_engine
+            messages = [{"role": m.role, "content": str(m.content)} 
+                        for m in session.messages]
+            await memory_engine.save_session(
+                session_id=session_id,
+                workflow_type=getattr(session, "workflow_type", "general"),
+                messages=messages,
+                start_time=session.created_at.isoformat() if session.created_at else datetime.utcnow().isoformat()
+            )
+        except Exception as e:
+            logger.error(f"Memory save failed for session {session_id}: {e}")
+        
         cls._cache_delete(session_id)
         try:
             await CacheService.delete_session_cache(session_id)
-
-
-
-
-        except:
+        except Exception:
             pass
             
         return session
@@ -713,7 +748,7 @@ class SessionManager:
         """
         doc = await cls._with_sessions_collection(
             lambda collection: collection.find_one(
-                {"session_id": session_id, "status": {"$in": ["active", "finalizing", "partial_sync", "completed"]}},
+                {"session_id": session_id, "status": {"$in": ["active", "finalizing", "partial_sync", "completed", "pending_vector"]}},
                 {
                     "_id": 0,
                     "session_id": 1,
@@ -791,36 +826,21 @@ class SessionManager:
             except Exception as e:
                 logger.error("Embedding generation failed for session %s: %s", session_id, e, exc_info=True)
 
-# Try Pinecone upsert *before* marking complete in Mongo
-        pinecone_success = False
-        vector_search = registry.get("vector")
-        
-        if embedding and vector_search:
-            await asyncio.to_thread(memory_handler.store_memory, session_id, summary_text, embedding)
+        # ── Atomic 3-phase sync via MemorySaga ──────────────────────────
+        from memory.memory_saga import MemorySaga
 
-            try:
-                pinecone_id = f"{session_id}::summary"
-                pinecone_meta = {
-                    "session_id": session_id,
-                    "type": "summary",
-                    "summary": summary_text[:1000] if summary_text else "unknown",
-                    "topic": topic if topic is not None else "general",     
-                    "tags": tags if tags is not None and len(tags) > 0 else ["unknown"],
-                }
-                await vector_search.upsert(id=pinecone_id, vector=embedding, metadata=pinecone_meta)
-                logger.info(f"[RAG] Pinecone session upsert success (finalization): {pinecone_id}")
-                pinecone_success = True
-            except Exception as pc_err:
-                logger.warning(f"[RAG] Pinecone session upsert failed (non-blocking): {pc_err}")
-                pinecone_success = False
-        else:
-            # If no vector search is configured, consider it "successful" so we can complete it,
-            # unless embedding generation failed when it shouldn't have.
-            pinecone_success = True if not vector_search else False
+        saga = MemorySaga(
+            session_id=session_id,
+            summary=summary_text,
+            embedding=embedding or [],
+            raw_segment="",
+            source="process_session_summary",
+        )
+        saga_ok = await saga.execute()
 
-        final_status = "completed" if pinecone_success else "partial_sync"
+        final_status = "completed" if saga_ok else "partial_sync"
 
-        # MongoDB write must succeed independently of Pinecone.
+        # MongoDB write must succeed independently of Pinecone/Neo4j.
         await cls._mark_completed(
             session_id,
             summary=summary_text,
@@ -1087,16 +1107,19 @@ class SessionManager:
 
     @classmethod
     async def _ensure_finalizing_status(cls, session_id: str):
-        collection = registry.get("db").get_collection(config.SESSIONS_COLLECTION)
-        if collection is None:
+        try:
+            collection = db_manager.get_collection(config.SESSIONS_COLLECTION)
+        except RuntimeError:
             return
 
-        doc = await cls._safe_db_call(
-            lambda: collection.find_one(
+        try:
+            doc = await collection.find_one(
                 {"session_id": session_id},
                 {"_id": 0, "status": 1},
             )
-        )
+        except Exception as e:
+            logger.error("[SM] _ensure_finalizing_status DB failed: %s", e)
+            return
         if not doc:
             return
 
@@ -1174,22 +1197,20 @@ class SessionManager:
 
     @classmethod
     async def _safe_db_call(cls, fn):
-        return await asyncio.to_thread(MongoDB.safe_db_call, fn)
+        """Execute a DB operation safely via db_manager."""
+        try:
+            result = fn()
+            if inspect.isawaitable(result):
+                return await result
+            return result
+        except Exception as e:
+            logger.error("[SM] _safe_db_call failed: %s", e)
+            return None
 
     @classmethod
     async def _with_sessions_collection(cls, fn):
-        """Run session collection operations on async Mongo with sync fallback."""
-        result = await AsyncMongoDB.with_collection(config.SESSIONS_COLLECTION, fn)
-        if result is not None:
-            return result
-
-        collection = registry.get("db").get_collection(config.SESSIONS_COLLECTION)
-        if collection is None:
-            return None
-        result = await cls._safe_db_call(lambda: fn(collection))
-        if inspect.isawaitable(result):
-            return await result
-        return result
+        """Run async collection operations via the unified db_manager."""
+        return await db_manager.with_collection(config.SESSIONS_COLLECTION, fn)
 
     @classmethod
     async def list_sessions(cls, include_archived: bool = False, limit: int = 100) -> List[Dict[str, Any]]:
@@ -1332,10 +1353,11 @@ class SessionManager:
         return docs
 
     @classmethod
-    def search_sessions_regex(cls, query: str, limit: int = 5) -> List[Dict]:
+    async def search_sessions_regex(cls, query: str, limit: int = 5) -> List[Dict]:
         """Basic keyword search for admin/fallback."""
-        collection = registry.get("db").get_collection(config.SESSIONS_COLLECTION)
-        if not collection: 
+        try:
+            collection = db_manager.get_collection(config.SESSIONS_COLLECTION)
+        except RuntimeError:
             return []
 
         try:
@@ -1347,12 +1369,11 @@ class SessionManager:
                     {"context_tags": regex}
                 ]
             }).sort("created_at", -1).limit(limit)
-            
-            results = list(cursor)
+
+            results = await cursor.to_list(length=limit)
             for r in results:
                 r["_id"] = str(r["_id"])
             return results
         except Exception as e:
             logger.error(f"Regex search failed: {e}")
             return []
-

@@ -1,0 +1,11 @@
+{
+  "type": "instagram",
+  "niche": "tech, productivity, building projects, AI tools",
+  "caption_style": "hook line + value + CTA",
+  "format_priority": ["carousel", "reel_script"],
+  "slide_count": 7,
+  "slide_structure": ["hook", "problem", "insight1", "insight2", "insight3", "action_step", "CTA"],
+  "visual_style": "clean, dark theme, code aesthetic, minimal text per slide",
+  "hashtag_count": 25,
+  "caption_max_chars": 300
+}

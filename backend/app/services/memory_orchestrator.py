@@ -1,3 +1,10 @@
+"""
+Memory Orchestrator — Unified write + retrieval pipeline for ASTA.
+
+Write path: L1 overflow → CPU summarize → MemorySaga (atomic 3-phase)
+Retrieval: Parallel Neo4j identity + Pinecone semantic → Late Fusion (RRF)
+"""
+
 import logging
 import asyncio
 import time
@@ -5,9 +12,10 @@ from datetime import datetime, timezone
 from backend.app.db.database import db_manager
 from backend.app.config import config
 from backend.app.services.l2_manager import l2_manager
-from backend.app.services.graph_service import l3_manager
+from memory.graph_service import graph_service as l3_manager
 from backend.app.core.registry import registry
 from backend.app.core.circuit_breaker import circuit_l2_vector, circuit_l3_graph, status_registry
+from backend.app.core.task_registry import TaskRegistry
 
 logger = logging.getLogger("Memory_Orchestrator")
 
@@ -15,103 +23,61 @@ logger = logging.getLogger("Memory_Orchestrator")
 class MemoryOrchestrator:
     """
     Unified memory pipeline:
-      L1 overflow → L2 (MongoDB + Pinecone) → L3 (Neo4j graph)
+      Write: L1 overflow → MemorySaga (Outbox → Mongo + Pinecone + Neo4j)
+      Read:  Parallel Neo4j + Pinecone → RRF Late Fusion → Structured XML
 
-    Retrieval priority:
-      1. Pinecone vector search (fast, indexed)
-      2. Neo4j graph traversal → MongoDB lookup (cross-tier)
-      3. L2 brute-force MongoDB cosine similarity (last resort)
+    Retrieval target: <200ms via parallel fetching.
+    Write target: Zero data loss via Outbox Pattern + retry worker.
     """
+
+    def __init__(self):
+        self._active_tasks: set = set()
 
     # ── L1 Overflow Handler ─────────────────────────────────────────────
     async def process_overflow(self, session_id: str, raw_segment: str):
         """
         Called when L1 cache evicts a turn.
-        Pipelines: Summarize → Embed → MongoDB + Pinecone + Neo4j.
-        Wrapped in asyncio.shield to ensure completion even if client disconnects.
+        Pipeline: Summarize → Embed (CPU-bound) → MemorySaga (atomic 3-phase write).
+        The Saga guarantees MongoDB, Pinecone, and Neo4j stay in sync.
         """
         async def _pipeline():
             try:
                 logger.info(f"[Orchestrator] Processing L1 overflow for {session_id[:8]}...")
 
-                # 1. L2: Summarize + Embed + Store to MongoDB (with circuit breaker)
-                summary, l2_success = await circuit_l2_vector.call(
-                    lambda: asyncio.to_thread(l2_manager.sync_process_and_store, session_id, raw_segment),
-                    fallback="",
-                    timeout_override=5.0  # Write operations get longer timeout
+                # 1. CPU-bound: Summarize + Embed (via L2 manager thread pool)
+                summary, embedding = await asyncio.to_thread(
+                    l2_manager._cpu_summarize, raw_segment
                 )
-                
-                if not l2_success:
-                    logger.warning(f"[Orchestrator] L2 processing bypassed due to circuit state or timeout")
-                    await status_registry.update_health("l2_vector", False, {"error": "circuit_open_or_timeout"})
-                else:
+
+                if not summary:
+                    logger.warning(f"[Orchestrator] Empty summary for {session_id[:8]} — skipping")
+                    return
+
+                # 2. Atomic write via MemorySaga (Outbox Pattern)
+                from memory.memory_saga import MemorySaga
+                saga = MemorySaga(
+                    session_id=session_id,
+                    summary=summary,
+                    embedding=embedding,
+                    raw_segment=raw_segment,
+                    source="overflow",
+                )
+                all_ok = await saga.execute()
+
+                if all_ok:
                     await status_registry.update_health("l2_vector", True)
-
-                # 2. Pinecone: Upsert summary vector (only if L2 succeeded)
-                if summary:
-                    await self._upsert_to_pinecone(session_id, summary)
-
-                    # 3. L3: Neo4j graph extraction (Queued properly avoiding 429 concurrent limit)
-                    from backend.app.services.llm_queue import llm_queue
-                    await llm_queue.enqueue(self._update_graph_with_circuit, session_id, summary)
+                else:
+                    logger.warning(f"[Orchestrator] Partial saga for {session_id[:8]} — retry worker will handle")
 
             except Exception as e:
-                logger.error(f"[Orchestrator] Overflow pipeline failed: {e}")
+                logger.error(f"[Orchestrator] Overflow pipeline failed for {session_id[:8]}: {e}")
 
-        # Run pipeline independently to prevent cancellation on socket close
-        asyncio.create_task(_pipeline())
-
-    # ── Pinecone Upsert ─────────────────────────────────────────────────
-    async def _upsert_to_pinecone(self, session_id: str, summary: str):
-        """
-        Generates embedding and upserts to Pinecone.
-        Isolated from MongoDB writes — failures here never block persistence.
-        """
-        try:
-            vector_search = self._get_vector_service()
-            if not vector_search:
-                logger.warning("[RAG] Pinecone not registered — skipping upsert.")
-                return
-
-            embedding_service = self._get_embedding_service()
-            if not embedding_service:
-                logger.warning("[RAG] Embedding service not available — skipping upsert.")
-                return
-
-            vector = await asyncio.to_thread(embedding_service.embed, summary)
-            if not vector:
-                logger.warning("[RAG] Empty embedding generated — skipping upsert.")
-                return
-
-            logger.info(f"[RAG] Embedding generated, length={len(vector)}")
-
-            vector_id = f"{session_id}::summary"
-            metadata = {
-                "session_id": session_id,
-                "type": "summary",
-                "summary": summary[:1000],  # Pinecone metadata limit
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
-
-            await vector_search.upsert(id=vector_id, vector=vector, metadata=metadata)
-            logger.info(f"[RAG] Pinecone upsert success: {vector_id}")
-
-        except Exception as e:
-            logger.error(f"[RAG] Pinecone upsert failed (non-blocking): {e}")
-
-    async def _update_graph_with_circuit(self, session_id: str, summary: str):
-        """L3 graph update with circuit breaker protection."""
-        _, l3_success = await circuit_l3_graph.call(
-            lambda: l3_manager.update_graph_knowledge(session_id, summary),
-            fallback=None,
-            timeout_override=5.0
+        # Run pipeline independently — tracked and supervised by TaskRegistry
+        TaskRegistry.track(
+            _pipeline(),
+            name=f"memory_overflow_pipeline:{session_id[:8]}",
+            session_id=session_id,
         )
-        
-        if not l3_success:
-            logger.warning(f"[Orchestrator] L3 graph update bypassed due to circuit state or timeout")
-            await status_registry.update_health("l3_graph", False, {"error": "circuit_open_or_timeout"})
-        else:
-            await status_registry.update_health("l3_graph", True)
 
     # ── Speculative Prefetch Pipeline (L1.5 Layer) ──────────────────────
     async def speculative_prefetch(self, partial_query: str, session_id: str):
@@ -126,9 +92,7 @@ class MemoryOrchestrator:
             intent = dispatcher.route_intent(partial_query)
             logger.info(f"[L1.5 Prefetch] Pre-classified Intent: {intent}")
             
-            # Phase C Action Trigger
             if intent == IntentType.IDENTITY:
-                # Trigger SkillsRetrieverTool defensively bypassing wait times for web searches.
                 from backend.app.services.action_executor import action_executor
                 from backend.app.models.action_model import ActionRequest
                 
@@ -137,20 +101,17 @@ class MemoryOrchestrator:
                     tool_name="SkillsRetriever",
                     parameters={"name": "KARTHIK"}
                 )
-                # Fire and forget execution to cache result into L1.5
-                asyncio.create_task(action_executor.execute_action(req))
+                TaskRegistry.track(
+                    action_executor.execute_action(req),
+                    name=f"skills_retriever_prefetch:{session_id[:8]}",
+                    session_id=session_id,
+                )
             elif intent == IntentType.ACTION:
-                # If we recognize a task or action, we might set tool metadata 
-                # (instead of just generic RAG) so the LLM invokes structured JSON.
-                # Right now, we still fetch context, but we will tag it with the intent type.
                 pass
             
-            # Reusing cross_tier_retrieve logic asynchronously
-            # This fetches the context, and stores it in the L1.5 speculative cache using the full query logic
-            context_result = await self.cross_tier_retrieve(partial_query, top_k=2)
+            context_result = await self.cross_tier_retrieve(partial_query, top_k=5)
             
-            if context_result.strip() and "I'm having trouble" not in context_result:
-                # Wrap it with an intent hint if appropriate
+            if context_result.strip() and "No relevant" not in context_result:
                 if intent != IntentType.CHITCHAT and intent != IntentType.IDENTITY:
                     context_result = f"[TRIGGERED_INTENT: {intent.value.upper()}]\n{context_result}"
                 
@@ -164,140 +125,165 @@ class MemoryOrchestrator:
         except Exception as e:
             logger.error(f"[L1.5 Prefetch] Background failure: {e}", exc_info=True)
 
-    # ── Retrieval Pipeline ──────────────────────────────────────────────
-    async def cross_tier_retrieve(self, query: str, top_k: int = 3) -> str:
+    # ── Retrieval Pipeline (Parallel + Late Fusion) ──────────────────────
+    async def cross_tier_retrieve(self, query: str, top_k: int = 8) -> str:
         """
-        Multi-tier retrieval (Hydration Protocol) with circuit breaker protection:
-          - Fetches Identity-First nodes (L3 - with circuit breaker).
-          - Performs Vector Search (L2 - with circuit breaker).
-          - Performs 2-hop Project Clustering (L3 - with circuit breaker).
+        Parallel multi-tier retrieval with Reciprocal Rank Fusion.
         
-        FALLBACK CHAIN:
-          - If L3 fails → Widen L2 search
-          - If L2 fails → Fall back to L1 context only
-          
-        Returns a formatted context string.
+        Architecture:
+          1. Fire Neo4j identity + graph context + Pinecone semantic search SIMULTANEOUSLY
+          2. Use graph clusters to filter Pinecone search
+          3. Merge results via Late Fusion (RRF)
+          4. Format as structured XML context
+        
+        Timeouts: 1.5s hard limit per parallel fetch.
+        Target: <200ms on local network, <500ms cross-region.
         """
-        logger.info(f"[RAG] Starting cross_tier_retrieve for query: '{query}'")
+        start_time = time.time()
+        logger.info(f"[RAG] Starting parallel cross_tier_retrieve for: '{query[:50]}'")
 
-        # Track overall retrieval status
-        l2_available = not circuit_l2_vector.is_open
-        l3_available = not circuit_l3_graph.is_open
-        
-        # 1. Identity-First (L3) - with strict 1000ms timeout
-        identity_str = ""
-        properties = []
-        if l3_available:
-            identity, identity_success = await circuit_l3_graph.call(
+        PARALLEL_TIMEOUT = 1.5  # seconds — hard limit for voice pipeline
+
+        # ── Phase 1: Fire all fetches in parallel ────────────────────────
+        async def _fetch_identity():
+            """Fetch user identity + properties from Neo4j."""
+            result, success = await circuit_l3_graph.call(
                 lambda: l3_manager.get_user_identity("KARTHIK"),
                 fallback={"name": "KARTHIK", "properties": [], "skills": [], "projects": []},
-                timeout_override=5.0  # Increased for Neo4j warmups
+                timeout_override=PARALLEL_TIMEOUT,
             )
-            if identity_success:
-                properties = identity.get("properties", [])
-                skills = identity.get("skills", [])
-                projects = identity.get("projects", [])
-                
-                identity_str = (
-                    f"Name: {identity.get('name', 'KARTHIK')}\n"
-                    f"Known Properties: {', '.join(properties) if properties else 'None'}\n"
-                    f"Skills: {', '.join(skills) if skills else 'None'}\n"
-                    f"Projects: {', '.join(projects) if projects else 'None'}"
+            return result, success
+
+        async def _fetch_graph_context():
+            """Get relevant session_ids from graph clusters."""
+            try:
+                result = await asyncio.wait_for(
+                    l3_manager.get_graph_context(query, session_id="retrieval"),
+                    timeout=PARALLEL_TIMEOUT
                 )
-                await status_registry.update_health("l3_graph", True)
-            else:
-                logger.warning("[RAG] L3 identity retrieval failed or timed out, using fallback")
-                identity_str = "Name: KARTHIK\nKnown Properties: Unknown\nSkills: Unknown\nProjects: Unknown"
-                await status_registry.update_health("l3_graph", False, {"error": "retrieval_timeout"})
-        else:
-            logger.warning("[RAG] L3 circuit OPEN, using identity fallback")
-            identity_str = "Name: KARTHIK\nKnown Properties: Unknown (L3 unavailable)\nSkills: Unknown (L3 unavailable)\nProjects: Unknown (L3 unavailable)"
+                return result.get("session_ids", []), True
+            except Exception as e:
+                logger.warning(f"[RAG] Graph context fetch failed: {e}")
+                return [], False
 
-        # Find matching properties from the query
-        matched_properties = [p for p in properties if p.lower() in query.lower()]
-        filter_session_ids = None  # Allow global search fallback if no clusters match
-
-        if l3_available and matched_properties:
-            logger.info(f"[RAG] Query matches properties: {matched_properties}. Fetching clusters.")
-            cluster_session_ids = set()
-            for prop in matched_properties:
-                start_l3 = time.time()
-                sids, s_success = await circuit_l3_graph.call(
-                    lambda: l3_manager.fetch_property_cluster(prop),
-                    fallback=[],
-                    timeout_override=5.0
-                )
-                logger.info(f"L3 Graph search completed in {time.time() - start_l3:.3f}s")
-                if s_success and sids:
-                    cluster_session_ids.update(sids)
-            
-            filter_session_ids = list(cluster_session_ids)
-            logger.info(f"[RAG] Clusters resolved to {len(filter_session_ids)} specific sessions.")
-
-        # 2. Semantic Search (L2/Vector) - with strict 1000ms timeout
-        pinecone_results = []
-        if l2_available:
-            start_l2 = time.time()
-            pinecone_results, l2_success = await circuit_l2_vector.call(
-                lambda: self._query_pinecone(query, top_k, filter_session_ids=filter_session_ids),
+        async def _fetch_semantic(filter_session_ids=None):
+            """Semantic search via Pinecone with optional graph-based filtering."""
+            results, success = await circuit_l2_vector.call(
+                lambda: self._query_pinecone(query, top_k=top_k, filter_session_ids=filter_session_ids),
                 fallback=[],
-                timeout_override=5.0  # Increased for Pinecone L2
+                timeout_override=PARALLEL_TIMEOUT,
             )
-            logger.info(f"L2 Lookup took {time.time() - start_l2:.3f}s")
-            if not l2_success:
-                logger.warning("[RAG] L2 vector search failed or timed out")
-                await status_registry.update_health("l2_vector", False, {"error": "retrieval_timeout"})
-                # FALLBACK: Widen search if L3 is available
-                if l3_available:
-                    logger.info("[RAG] Attempting graph fallback for wider search")
-                    pinecone_results = await self._fallback_to_graph(query, top_k)
+            return results, success
+
+        # Run identity and graph context in parallel first
+        try:
+            (identity_result, id_success), (filter_session_ids, graph_success) = await asyncio.gather(
+                _fetch_identity(),
+                _fetch_graph_context(),
+            )
+        except Exception as e:
+            logger.error(f"[RAG] Parallel fetch (phase 1) failed: {e}")
+            identity_result = {"name": "KARTHIK", "properties": [], "skills": [], "projects": []}
+            id_success = False
+            filter_session_ids = []
+            graph_success = False
+
+        # Now fetch from Pinecone with optional filtering
+        if filter_session_ids and graph_success:
+            logger.info(f"[RAG] Using graph-filtered search with {len(filter_session_ids)} sessions")
+            pinecone_results, pc_success = await _fetch_semantic(filter_session_ids=filter_session_ids)
         else:
-            logger.warning("[RAG] L2 circuit OPEN, bypassing vector search")
-            # FALLBACK: Try graph-based retrieval
-            if l3_available:
-                pinecone_results = await self._fallback_to_graph(query, top_k)
+            logger.info(f"[RAG] Using global semantic search (no graph filter)")
+            pinecone_results, pc_success = await _fetch_semantic(filter_session_ids=None)
 
-        # STRICT FALLBACK: If no results from filtered search, do global L2 search
-        if not pinecone_results and filter_session_ids is not None:
-            logger.info("[RAG] Strict fallback: Triggering global L2 search (L3 returned 0 results)")
-            if l2_available:
-                start_l2_global = time.time()
-                pinecone_results, _ = await circuit_l2_vector.call(
-                    lambda: self._query_pinecone(query, top_k, filter_session_ids=None),
-                    fallback=[],
-                    timeout_override=5.0
-                )
-                logger.info(f"L2 Lookup (global fallback) took {time.time() - start_l2_global:.3f}s")
-            elif l3_available:
-                # Last resort: graph fallback
-                pinecone_results = await self._fallback_to_graph(query, top_k)
+        # ── Phase 2: Extract identity fields ─────────────────────────────
+        if id_success:
+            properties = identity_result.get("properties", [])
+            skills = identity_result.get("skills", [])
+            projects = identity_result.get("projects", [])
+            await status_registry.update_health("l3_graph", True)
+        else:
+            properties, skills, projects = [], [], []
+            await status_registry.update_health("l3_graph", False, {"error": "retrieval_failed"})
 
-        session_ids = [r[0] for r in pinecone_results]
-        summaries = [r[1] for r in pinecone_results]
+        if pc_success:
+            await status_registry.update_health("l2_vector", True)
+        else:
+            await status_registry.update_health("l2_vector", False, {"error": "retrieval_failed"})
 
-        # 3. Target cluster visualization (Optional for context formatting)
-        cluster_str = ""
-        if matched_properties:
-            cluster_str = "\n".join(f"- Active Topic: {p}" for p in matched_properties)
+        # ── Phase 3: Late Fusion via Reciprocal Rank Fusion ──────────────
+        RRF_K = 60  # Standard RRF constant
+        fused_results = {}  # session_id -> {summary, score}
 
-        if not cluster_str:
-            cluster_str = "No specific active topics from the user's properties were mentioned in the current query."
+        for rank, (session_id, summary) in enumerate(pinecone_results):
+            rrf_score = 1.0 / (rank + RRF_K)
+            key = session_id or f"anon_{rank}"
+            if key not in fused_results or rrf_score > fused_results[key]["score"]:
+                fused_results[key] = {"summary": summary, "score": rrf_score}
 
-        # 4. Build context
-        history_str = "\n".join(f"- {s}" for s in summaries) if summaries else "No recent relevant sessions found."
+        # Sort by RRF score and take top results
+        sorted_results = sorted(fused_results.values(), key=lambda x: x["score"], reverse=True)
+        top_summaries = [r["summary"] for r in sorted_results[:top_k]]
 
-        hydrated_context = (
-            f"[USER PROFILE / IDENTITY]\n{identity_str}\n\n"
-            f"[ACTIVE TOPICS MENTIONED IN LAST TURN]\n{cluster_str}\n\n"
-            f"[ARCHIVAL MEMORY (L2/L3)]\n{history_str}"
-        )
+        # ── Phase 4: Format structured context ───────────────────────────
+        elapsed = time.time() - start_time
         mode = status_registry.get_memory_mode()
-        logger.info(f"[RAG] Memory mode: {mode}")
-        
-        return hydrated_context
+        logger.info(
+            f"[RAG] Retrieval completed in {elapsed:.3f}s "
+            f"(mode={mode}, results={len(top_summaries)})"
+        )
 
-    async def _query_pinecone(self, query: str, top_k: int = 3, filter_session_ids: list[str] = None) -> list[tuple[str, str]]:
-        """Queries Pinecone for semantically similar summaries. Returns list of (session_id, summary)."""
+        return self._format_structured_context(
+            identity_result if id_success else None,
+            properties, skills, projects,
+            top_summaries,
+        )
+
+    # ── Structured Context Formatter (Component 9) ───────────────────────
+    def _format_structured_context(
+        self,
+        identity: dict | None,
+        properties: list,
+        skills: list,
+        projects: list,
+        episodic_summaries: list,
+    ) -> str:
+        """
+        Format retrieval results as structured XML context for LLM injection.
+        Clear XML boundaries prevent hallucination from flat context blobs.
+        """
+        name = identity.get("name", "KARTHIK") if identity else "KARTHIK"
+        props_str = ", ".join(properties) if properties else "None available"
+        skills_str = ", ".join(skills) if skills else "None available"
+        projects_str = ", ".join(projects) if projects else "None available"
+
+        if episodic_summaries:
+            episodes = "\n".join(f"    <episode>{s}</episode>" for s in episodic_summaries)
+        else:
+            episodes = "    <episode>No relevant past sessions found.</episode>"
+
+        context = (
+            "<memory_context>\n"
+            "  <core_identity>\n"
+            f"    <name>{name}</name>\n"
+            f"    <active_projects>{projects_str}</active_projects>\n"
+            f"    <known_skills>{skills_str}</known_skills>\n"
+            f"    <known_properties>{props_str}</known_properties>\n"
+            "  </core_identity>\n"
+            "  <episodic_recall>\n"
+            f"{episodes}\n"
+            "  </episodic_recall>\n"
+            "  <tool_history>\n"
+            "    <note>No recent tool executions.</note>\n"
+            "  </tool_history>\n"
+            "</memory_context>"
+        )
+
+        return context
+
+    # ── Pinecone Query ──────────────────────────────────────────────────
+    async def _query_pinecone(self, query: str, top_k: int = 8, filter_session_ids: list[str] = None) -> list[tuple[str, str]]:
+        """Queries Pinecone for semantically similar summaries."""
         try:
             vector_search = self._get_vector_service()
             if not vector_search:
@@ -312,19 +298,12 @@ class MemoryOrchestrator:
                 logger.warning("[RAG] Empty query embedding — skipping Pinecone query.")
                 return []
 
-            logger.info(f"[RAG] Querying Pinecone (top_k={top_k}, dim={len(query_vector)})...")
-            
             query_kwargs = {"vector": query_vector, "top_k": top_k}
-            if filter_session_ids is not None:
-                if filter_session_ids:
-                    query_kwargs["filter"] = {"session_id": {"$in": filter_session_ids}}
-                else:
-                    logger.info("[RAG] filter_session_ids is empty, ignoring graph domains and performing global vector search.")
+            if filter_session_ids:
+                query_kwargs["filter"] = {"session_id": {"$in": filter_session_ids}}
             
             result = await vector_search.query(**query_kwargs)
-
             matches = getattr(result, "matches", []) or []
-            logger.info(f"[RAG] Pinecone returned {len(matches)} matches.")
 
             results = []
             for match in matches:
@@ -332,80 +311,38 @@ class MemoryOrchestrator:
                 metadata = getattr(match, "metadata", {}) or {}
                 summary = metadata.get("summary", "")
                 session_id = metadata.get("session_id", "")
-                if summary and score >= 0.3:
+                if summary and score >= 0.25:
                     results.append((session_id, summary))
-                    logger.info(f"[RAG] Match: score={score:.3f}, session={session_id[:8]}")
 
             return results
         except Exception as e:
             logger.error(f"[RAG] Pinecone query failed: {e}")
             return []
 
-    async def _query_via_graph(self, query: str, top_k: int = 3) -> list[str]:
-        """Uses Neo4j to find related session_ids, then fetches summaries from MongoDB."""
-        try:
-            session_ids = await l3_manager.query_related_sessions(query, limit=top_k)
-            if not session_ids:
-                return []
-
-            if l2_manager.collection is None:
-                return []
-
-            docs = await asyncio.to_thread(
-                lambda: list(
-                    l2_manager.collection.find(
-                        {"session_id": {"$in": session_ids}},
-                        {"summary": 1},
-                    )
-                )
-            )
-            return [d["summary"] for d in docs if d.get("summary")]
-
-        except Exception as e:
-            logger.error(f"[RAG] Graph→MongoDB retrieval failed: {e}")
-            return []
-
     async def _fallback_to_graph(self, query: str, top_k: int) -> list[tuple[str, str]]:
-        """
-        FALLBACK: When L2 (vector) is unavailable, try to retrieve via L3 graph.
-        Uses Neo4j to find related sessions, then fetches from MongoDB.
-        """
+        """FALLBACK: When L2 unavailable, retrieve via L3 graph → MongoDB."""
         try:
-            start_l3_fallback = time.time()
-            # Find related session IDs via graph
             session_ids, success = await circuit_l3_graph.call(
                 lambda: l3_manager.query_related_sessions(query, limit=top_k),
                 fallback=[],
-                timeout_override=5.0
+                timeout_override=1.5,
             )
-            logger.info(f"L3 Graph search completed in {time.time() - start_l3_fallback:.3f}s")
             
             if not success or not session_ids:
                 return []
             
-            # Fetch summaries from MongoDB
-            if l2_manager.collection is None:
-                return []
-            
-            docs = await asyncio.to_thread(
-                lambda: list(
-                    l2_manager.collection.find(
-                        {"session_id": {"$in": session_ids}},
-                        {"summary": 1, "session_id": 1},
-                    )
-                )
+            collection = db_manager.get_collection("session_memory")
+            cursor = collection.find(
+                {"session_id": {"$in": session_ids}},
+                {"summary": 1, "session_id": 1},
             )
+            docs = await cursor.to_list(length=top_k)
             
-            results = []
-            for doc in docs:
-                sid = doc.get("session_id", "")
-                summary = doc.get("summary", "")
-                if sid and summary:
-                    results.append((sid, summary))
-            
-            logger.info(f"[RAG] Graph fallback retrieved {len(results)} results")
-            return results
-            
+            return [
+                (doc.get("session_id", ""), doc.get("summary", ""))
+                for doc in docs
+                if doc.get("session_id") and doc.get("summary")
+            ]
         except Exception as e:
             logger.error(f"[RAG] Graph fallback failed: {e}")
             return []
