@@ -1,0 +1,253 @@
+"""
+ASTA conversational task manager.
+
+Implements the chat-driven routine task CRUD: create (with multi-turn
+clarification), list, complete, reschedule — backed by the real Routine DB
+(Task Name=title, Type=select, Scheduled Time=rich_text, Status=select, Date=date).
+
+These run INSIDE the supervisor graph's `routine_workflow` node, so any
+`interrupt()` here is bound to the checkpointed thread (thread_id = session_id)
+and resumes correctly on the user's next message via Command(resume=...).
+"""
+import logging
+import re
+from datetime import date
+
+from rapidfuzz import fuzz
+from langgraph.types import interrupt
+
+from backend.app.core.llm_factory import acomplete
+from backend.app.services.notion_service import notion_service
+
+logger = logging.getLogger("TaskManager")
+
+ASTA_VOICE = (
+    "You are ASTA, Karthik's personal AI assistant. Warm, sharp, concise. "
+    "Call him 'boss'. Reply in natural language, never JSON."
+)
+
+# Fuzzy-match thresholds for matching a spoken task name to a Notion row.
+_MATCH_MIN = 60      # below this = no match
+_MATCH_GAP = 20      # top must beat runner-up by this much to be unambiguous
+
+# create_task stores titles like "[MEDIUM] Call mom"; strip that prefix so the
+# priority tag doesn't pollute fuzzy matching or what we show the user.
+_PRIO_PREFIX = re.compile(r"^\s*\[(?:HIGH|MEDIUM|LOW)\]\s*", re.IGNORECASE)
+
+
+def _clean_name(name: str) -> str:
+    return _PRIO_PREFIX.sub("", name or "").strip()
+
+
+# ── Action classification ─────────────────────────────────────────────────────
+
+def classify_action(text: str) -> str:
+    """Keyword-first routing of a routine task message. Order matters."""
+    low = text.lower()
+    if any(k in low for k in ["mark", "done", "completed", "finished", "complete", "tick off", "check off"]):
+        return "complete"
+    if any(k in low for k in ["move", "reschedule", "postpone", "push", "shift", "change the time"]):
+        return "reschedule"
+    if any(k in low for k in ["what's on", "whats on", "my list", "my plan", "what's my", "whats my",
+                              "show me", "list my", "what do i have", "agenda", "my tasks", "my day"]):
+        return "list"
+    if any(k in low for k in ["remind", "add", "create", "schedule", "set a", "new task", "meeting", "meet", "attend"]):
+        return "create"
+    return "list"  # safe default: show what's planned
+
+
+# ── LLM extraction helpers ─────────────────────────────────────────────────────
+
+async def _extract_task(user_input: str) -> dict:
+    """Pull task name / time / priority out of a create request."""
+    raw = await acomplete(
+        system="You extract a task name, time, and priority from a request. Be terse.",
+        user=(
+            f'Extract task details from: "{user_input}"\n\n'
+            "Return EXACTLY:\n"
+            "Task Name: [clear task description, no time words]\n"
+            'Time: [time if mentioned e.g. "5pm", else "Not specified"]\n'
+            "Priority: [high, medium, or low — default medium]"
+        ),
+        task="quick", temperature=0.0, max_tokens=80,
+    )
+    task_name, scheduled_time, priority = user_input, "", "medium"
+    for line in (raw or "").splitlines():
+        if line.startswith("Task Name:"):
+            task_name = line.split(":", 1)[1].strip() or task_name
+        elif line.startswith("Time:"):
+            t = line.split(":", 1)[1].strip()
+            if t and t.lower() != "not specified":
+                scheduled_time = t
+        elif line.startswith("Priority:"):
+            p = line.split(":", 1)[1].strip().lower()
+            if p in ("high", "medium", "low"):
+                priority = p
+    return {"task": task_name, "time": scheduled_time, "priority": priority}
+
+
+async def _extract_target_and_time(user_input: str) -> dict:
+    """Pull target task name + new time out of a reschedule request."""
+    raw = await acomplete(
+        system="You extract which task to reschedule and the new time. Be terse.",
+        user=(
+            f'From: "{user_input}"\n\n'
+            "Return EXACTLY:\n"
+            "Target: [the task name being moved, no time words]\n"
+            'Time: [the new time e.g. "7pm", else "Not specified"]'
+        ),
+        task="quick", temperature=0.0, max_tokens=60,
+    )
+    target, new_time = user_input, ""
+    for line in (raw or "").splitlines():
+        if line.startswith("Target:"):
+            target = line.split(":", 1)[1].strip() or target
+        elif line.startswith("Time:"):
+            t = line.split(":", 1)[1].strip()
+            if t and t.lower() != "not specified":
+                new_time = t
+    return {"target": target, "time": new_time}
+
+
+# ── Fuzzy matching ─────────────────────────────────────────────────────────────
+
+def _rank_matches(query: str, tasks: list) -> list:
+    """Return tasks scored against query, descending, filtered to >= _MATCH_MIN."""
+    q = _clean_name(query).lower()
+    scored = [(t, fuzz.WRatio(q, _clean_name(t.get("task_name")).lower())) for t in tasks]
+    scored.sort(key=lambda x: -x[1])
+    return [(t, s) for t, s in scored if s >= _MATCH_MIN]
+
+
+def _resolve_one(query: str, tasks: list):
+    """Return (task, None) if a single confident match, (None, candidates) if ambiguous, (None, []) if none."""
+    ranked = _rank_matches(query, tasks)
+    if not ranked:
+        return None, []
+    if len(ranked) == 1:
+        return ranked[0][0], None
+    if ranked[0][1] - ranked[1][1] >= _MATCH_GAP:
+        return ranked[0][0], None
+    return None, [t for t, _ in ranked]
+
+
+# ── Action handlers ─────────────────────────────────────────────────────────────
+
+async def _handle_create(user_input: str, today: str) -> dict:
+    extracted = await _extract_task(user_input)
+    task, scheduled_time, priority = extracted["task"], extracted["time"], extracted["priority"]
+
+    # Required field: time. Missing → pause and ask, hold context on the thread.
+    if not scheduled_time:
+        reply = interrupt({"question": f"What time should I set for '{task}', boss?", "field": "time"})
+        scheduled_time = (reply or "").strip()
+
+    page_id = await notion_service.create_task(
+        task=task, time=scheduled_time, priority=priority, task_date=today,
+    )
+    resp = await acomplete(
+        ASTA_VOICE,
+        f"Confirm you just added the task '{task}' at {scheduled_time} (priority {priority}) "
+        f"to his Notion routine. One short friendly line, max 30 words.",
+        task="quick", max_tokens=60,
+    )
+    return {"response": resp, "task_data": {"task": task, "time": scheduled_time, "priority": priority},
+            "notion_page_id": page_id}
+
+
+async def _handle_list(today: str) -> dict:
+    tasks = await notion_service.get_pending_tasks(today)
+    if not tasks:
+        return {"response": "Nothing on your list for today, boss — clean slate. 🎯", "task_data": {"tasks": []}}
+    listing = "\n".join(
+        f"- {t['task_name']}" + (f" at {t['scheduled_time']}" if t.get("scheduled_time") else "")
+        + f" [{t.get('status', 'Pending')}]"
+        for t in tasks
+    )
+    resp = await acomplete(
+        ASTA_VOICE,
+        f"These are Karthik's tasks for today. Present them as a friendly natural-language rundown "
+        f"(keep the times). Max 120 words.\n\n{listing}",
+        task="quick", max_tokens=220,
+    )
+    return {"response": resp, "task_data": {"tasks": tasks}}
+
+
+async def _handle_complete(user_input: str, today: str) -> dict:
+    tasks = await notion_service.get_pending_tasks(today)
+    if not tasks:
+        return {"response": "You've got no open tasks today, boss — nothing to tick off.", "task_data": {}}
+
+    target = await _extract_target_name_for_complete(user_input)
+    match, candidates = _resolve_one(target, tasks)
+    if match is None and candidates:
+        names = ", ".join(_clean_name(c["task_name"]) for c in candidates)
+        reply = interrupt({"question": f"Which one do you mean, boss — {names}?", "field": "which_task"})
+        match, candidates = _resolve_one((reply or "").strip(), tasks)
+    if match is None:
+        return {"response": f"I couldn't find an open task matching '{target}', boss.", "task_data": {}}
+
+    name = _clean_name(match["task_name"])
+    ok = await notion_service.update_task_status(match["page_id"], "Completed")
+    if not ok:
+        return {"response": f"I found '{name}' but couldn't update it, boss.", "task_data": {}}
+    return {"response": f"Done, boss — marked '{name}' as completed. ✅",
+            "task_data": {"completed": name}}
+
+
+async def _handle_reschedule(user_input: str, today: str) -> dict:
+    tasks = await notion_service.get_pending_tasks(today)
+    if not tasks:
+        return {"response": "No tasks to move today, boss.", "task_data": {}}
+
+    parsed = await _extract_target_and_time(user_input)
+    target, new_time = parsed["target"], parsed["time"]
+
+    match, candidates = _resolve_one(target, tasks)
+    if match is None and candidates:
+        names = ", ".join(_clean_name(c["task_name"]) for c in candidates)
+        reply = interrupt({"question": f"Which task should I move, boss — {names}?", "field": "which_task"})
+        match, candidates = _resolve_one((reply or "").strip(), tasks)
+    if match is None:
+        return {"response": f"I couldn't find a task matching '{target}' to move, boss.", "task_data": {}}
+
+    name = _clean_name(match["task_name"])
+    if not new_time:
+        reply = interrupt({"question": f"What time should I move '{name}' to, boss?", "field": "time"})
+        new_time = (reply or "").strip()
+
+    ok = await notion_service.update_task_schedule(match["page_id"], scheduled_time=new_time)
+    if not ok:
+        return {"response": f"I found '{name}' but couldn't reschedule it, boss.", "task_data": {}}
+    return {"response": f"Moved '{name}' to {new_time}, boss. ⏰",
+            "task_data": {"rescheduled": name, "time": new_time}}
+
+
+async def _extract_target_name_for_complete(user_input: str) -> str:
+    """Strip command words from a 'mark X as done' phrase to get the task name."""
+    raw = await acomplete(
+        system="Extract only the task name the user wants to mark done. Reply with just the name.",
+        user=f'From: "{user_input}"\nTask name only:',
+        task="quick", temperature=0.0, max_tokens=30,
+    )
+    name = (raw or "").strip().strip('"').splitlines()[0] if raw else user_input
+    return name or user_input
+
+
+# ── Entry point ─────────────────────────────────────────────────────────────────
+
+async def handle_routine_turn(user_input: str) -> dict:
+    """Route a chat routine message to create / list / complete / reschedule.
+
+    May raise GraphInterrupt (via interrupt()) — the caller must let it propagate.
+    """
+    today = date.today().isoformat()
+    action = classify_action(user_input)
+    logger.info(f"[task_manager] action={action} input={user_input[:50]!r}")
+    if action == "create":
+        return await _handle_create(user_input, today)
+    if action == "complete":
+        return await _handle_complete(user_input, today)
+    if action == "reschedule":
+        return await _handle_reschedule(user_input, today)
+    return await _handle_list(today)

@@ -85,6 +85,29 @@ class NotionService:
             logger.error(f"Failed to create routine task: {e}")
             raise
 
+    async def create_task(
+        self,
+        task: str,
+        time: str = "",
+        priority: str = "",
+        task_type: str = "Dynamic",
+        task_date: str = None,
+    ) -> str:
+        """
+        Convenience wrapper for capturing a routine task.
+        Priority is recorded in the task title (the Routine DB schema only has
+        Task Name / Type / Scheduled Time / Status / Date), so we keep the
+        Notion write to known properties to avoid schema errors.
+        """
+        task_date = task_date or datetime.now().strftime("%Y-%m-%d")
+        title = f"[{priority.upper()}] {task}" if priority else task
+        return await self.create_routine_task(
+            task_name=title,
+            task_type=task_type,
+            scheduled_time=time or "",
+            date=task_date,
+        )
+
     async def get_pending_tasks(self, date: str) -> list:
         """Get all pending tasks for a specific date."""
         try:
@@ -138,6 +161,26 @@ class NotionService:
             return True
         except Exception as e:
             logger.error(f"Failed to update task status: {e}")
+            return False
+
+    async def update_task_schedule(
+        self, page_id: str, scheduled_time: str = None, date: str = None
+    ) -> bool:
+        """Reschedule a task: update Scheduled Time (rich_text) and/or Date (date)."""
+        try:
+            properties = {}
+            if scheduled_time is not None:
+                properties["Scheduled Time"] = {
+                    "rich_text": [{"text": {"content": scheduled_time}}]
+                }
+            if date is not None:
+                properties["Date"] = {"date": {"start": date}}
+            if not properties:
+                return False
+            await self.client.pages.update(page_id=page_id, properties=properties)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to update task schedule: {e}")
             return False
 
     async def delete_completed_tasks(self, date: str) -> int:

@@ -357,40 +357,31 @@ async def conversation_ws(websocket: WebSocket):
                     logger.info(f"[WORKFLOW] Routing to supervisor for workflow execution")
                     
                     try:
-                        from backend.app.core.supervisor import run_supervisor
-                        
-                        # Determine workflow hint based on intent
-                        workflow_hint = None
-                        if "research" in transcript.lower():
-                            workflow_hint = "research"
-                        elif any(kw in transcript.lower() for kw in ["linkedin", "post", "content"]):
-                            workflow_hint = "content"
-                        elif any(kw in transcript.lower() for kw in ["task", "routine", "notion", "morning", "night", "plan", "schedule"]):
-                            workflow_hint = "routine"
-                        
-                        # Run supervisor to execute workflow
+                        from backend.app.core.supervisor_graph import run_supervisor_graph
+
+                        # Run supervisor graph (it classifies + routes internally)
                         await tsm.transition(TurnState.TOOL_PENDING)
                         await tsm.transition(TurnState.TOOL_EXECUTING)
-                        
+
                         try:
                             await websocket.send_json({"type": "llm_chunk", "text": "Let me check that for you, boss...\n", "turn_id": current_turn_id})
                         except Exception:
                             pass
-                        
-                        # Execute supervisor
+
+                        # Execute supervisor graph
                         result = await asyncio.wait_for(
-                            run_supervisor(
+                            run_supervisor_graph(
                                 session_id=session_id,
                                 user_input=transcript,
-                                workflow_hint=workflow_hint
+                                messages=(history or []),
                             ),
                             timeout=60.0
                         )
-                        
+
                         await tsm.resolve_tool(result)
-                        
-                        # Get response from supervisor
-                        response_text = result.get("asta_response", "Task completed.")
+
+                        # Get response from supervisor (graph returns "response")
+                        response_text = result.get("response") or result.get("asta_response", "Task completed.")
                         logger.info(f"[WORKFLOW] Supervisor completed: {result.get('workflow_type', 'unknown')} workflow")
                         
                         # Stream response to client

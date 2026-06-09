@@ -108,27 +108,26 @@ async def handle_chat(req: ChatRequest, token: str = Depends(verify_token)):
 
     full_reply = ""
     try:
-        # Use supervisor for workflow orchestration
-        from backend.app.core.supervisor import run_supervisor
-        
+        # Use the supervisor LangGraph for orchestration
+        from backend.app.core.supervisor_graph import run_supervisor_graph
+
         session_id = req.session_id or f"chat-{int(time.time())}"
-        
-        # Fetch memory context
-        memory_context = ""
+
+        # Fetch conversation history (best-effort; memory context is injected by the graph)
+        history = []
         try:
-            history, rag_context = await fetch_memory_context(req.message, session_id)
-            memory_context = rag_context or ""
+            history, _ = await fetch_memory_context(req.message, session_id)
         except Exception as mem_err:
             logger.error(f"[Chat] Error fetching memory context: {mem_err}")
-        
-        # Run supervisor
-        result = await run_supervisor(
+
+        # Run supervisor graph (classifies intent + routes + checkpoints)
+        result = await run_supervisor_graph(
             session_id=session_id,
             user_input=req.message,
-            workflow_hint=req.workflow_hint or ""
+            messages=history or [],
         )
-        
-        full_reply = result.get("asta_response", "")
+
+        full_reply = result.get("response", "")
         
         # Save to session if we have a session_id
         if req.session_id and full_reply.strip():

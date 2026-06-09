@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     SERPER_API: str = ""
     
+    # LangGraph checkpointer (PostgreSQL). Empty = fall back to in-memory MemorySaver.
+    POSTGRES_URL: str = ""
+
     # Memory Layer Configuration
     REDIS_URL: str = "redis://localhost:6379/0"
     REDIS_TTL_HOT: int = 3600          # 1 hour for active session cache

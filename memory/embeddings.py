@@ -12,6 +12,9 @@ logger = logging.getLogger("EmbeddingService")
 logger.info("Loading sentence-transformers model (all-MiniLM-L6-v2)...")
 _model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 _dim = 384
+# Single source of truth for embedding dimension across the whole memory layer
+# (Pinecone index dim, upsert, and query must all agree on this).
+EMBED_DIM = _dim
 logger.info("Sentence-transformers model loaded and ready")
 
 

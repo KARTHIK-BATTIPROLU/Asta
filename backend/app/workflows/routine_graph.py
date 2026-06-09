@@ -33,12 +33,14 @@ async def detect_routine_phase(state: RoutineState) -> RoutineState:
     if state.get("routine_phase"):
         return state
     
-    if any(w in user_input for w in ["good morning", "wake", "alarm", "morning"]) or hour < 10:
+    # Explicit task/reminder intent wins over time-of-day defaults — otherwise
+    # "remind me to call mom at 5pm" gets misrouted to the morning brief before 10am.
+    if any(w in user_input for w in ["add", "create", "schedule", "remind", "task", "tasks", "meeting", "meet", "attend", "what's my plan", "routine", "agenda"]):
+        state["routine_phase"] = "task_management"
+    elif any(w in user_input for w in ["good morning", "wake", "alarm", "morning"]) or hour < 10:
         state["routine_phase"] = "morning_brief"
     elif any(w in user_input for w in ["night", "plan tomorrow", "end of day", "wrap up"]) or hour >= 21:
         state["routine_phase"] = "night_planning"
-    elif any(w in user_input for w in ["add", "create", "schedule", "remind", "task", "tasks", "meeting", "meet", "attend", "what's my plan", "routine", "agenda"]):
-        state["routine_phase"] = "task_management"
     else:
         state["routine_phase"] = "general"
     
@@ -145,26 +147,28 @@ async def task_management(state: RoutineState) -> RoutineState:
     is_adding_task = any(w in user_input.lower() for w in ["add", "create", "schedule", "remind", "attend", "meeting", "meet"])
     
     if is_adding_task:
-        # Use LLM to extract task details from user input
+        # Use LLM to extract task details (task, time, priority) from user input
         extraction_prompt = f"""Extract task details from this request: "{user_input}"
 
-Return in this format:
+Return in EXACTLY this format:
 Task Name: [clear task description]
-Time: [time if mentioned, or "Not specified"]
+Time: [time if mentioned, e.g. "5pm", or "Not specified"]
+Priority: [high, medium, or low — infer from urgency words, default medium]
 
-Be concise and clear."""
-        
+Be concise."""
+
         extraction = await llm_router.invoke_with_system(
             "quick_response",
-            "You are a task extraction assistant. Extract task name and time from user requests.",
+            "You are a task extraction assistant. Extract task name, time, and priority from user requests.",
             extraction_prompt
         )
-        
+
         # Parse the extraction (simple approach)
         lines = extraction.split("\n")
         task_name = user_input  # Default to full input
         scheduled_time = ""
-        
+        priority = "medium"
+
         for line in lines:
             if line.startswith("Task Name:"):
                 task_name = line.replace("Task Name:", "").strip()
@@ -172,22 +176,34 @@ Be concise and clear."""
                 time_str = line.replace("Time:", "").strip()
                 if time_str.lower() != "not specified":
                     scheduled_time = time_str
-        
+            elif line.startswith("Priority:"):
+                p = line.replace("Priority:", "").strip().lower()
+                if p in ("high", "medium", "low"):
+                    priority = p
+
+        # Pass structured task data back up to the supervisor
+        state["task_data"] = {
+            "task": task_name,
+            "time": scheduled_time,
+            "priority": priority,
+        }
+
         # Create the task in Notion
         try:
-            page_id = await notion_service.create_routine_task(
-                task_name=task_name,
-                task_type="Dynamic",
-                scheduled_time=scheduled_time,
-                date=today
+            page_id = await notion_service.create_task(
+                task=task_name,
+                time=scheduled_time,
+                priority=priority,
+                task_date=today,
             )
-            
+            state["notion_page_id"] = page_id
+
             response = await llm_router.invoke_with_system(
                 "quick_response",
                 ASTA_MORNING_SYSTEM,
-                f"Confirm to Karthik that you've added this task to his Notion: '{task_name}' {f'at {scheduled_time}' if scheduled_time else 'for today'}. Be brief and friendly, max 40 words."
+                f"Confirm to Karthik that you've added this task to his Notion: '{task_name}' {f'at {scheduled_time}' if scheduled_time else 'for today'} (priority {priority}). Be brief and friendly, max 40 words."
             )
-            
+
             state["intermediate_stages"] = add_stage(
                 state, "task_management", "task_created", f"Created: {task_name}"
             )

@@ -361,6 +361,16 @@ async def startup_event():
         logger.info(f"Memory layer: {memory_status}")
     except Exception as e:
         logger.error(f"Memory layer startup failed: {e}")
+
+    # Initialize LangGraph checkpointer (PostgreSQL, falls back to in-memory)
+    try:
+        from backend.app.core.checkpointer import init_checkpointer
+        from backend.app.core.supervisor_graph import get_supervisor_graph
+        await init_checkpointer()
+        get_supervisor_graph()  # compile once now that the checkpointer is ready
+        logger.info("Supervisor graph + checkpointer initialized")
+    except Exception as e:
+        logger.error(f"Checkpointer/supervisor init failed: {e}")
     
     # Initialize and start scheduler
     try:
@@ -449,6 +459,13 @@ async def shutdown_event():
         await memory_engine.disconnect_all()
     except Exception as e:
         logger.error(f"Memory layer shutdown error: {e}")
+
+    # Close LangGraph checkpointer (Postgres pool)
+    try:
+        from backend.app.core.checkpointer import close_checkpointer
+        await close_checkpointer()
+    except Exception as e:
+        logger.error(f"Checkpointer shutdown error: {e}")
     
     try:
         embedding_service = registry.get("embedding")

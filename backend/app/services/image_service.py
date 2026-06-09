@@ -66,7 +66,7 @@ class ImageService:
     
     async def _build_image_prompt(self, topic: str, post_body: str) -> str:
         """Build an image generation prompt using LLM."""
-        from app.core.llm_router import llm_router
+        from backend.app.core.llm_router import llm_router
         
         try:
             return await llm_router.invoke_with_system(

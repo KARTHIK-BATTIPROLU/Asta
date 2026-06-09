@@ -95,31 +95,41 @@ class DatabaseManager:
             await self._ensure_indexes()
 
     async def _ensure_indexes(self):
-        """Create required indexes (idempotent, safe on every startup)."""
+        """Create required indexes (idempotent, safe on every startup).
+
+        Guards against IndexOptionsConflict: an index on the same key may already
+        exist under a different name (e.g. legacy 'session_id_unique_v2'). We only
+        create an index when no index on those keys exists yet — so re-runs and
+        pre-existing/renamed indexes never raise.
+        """
         try:
             sessions = self.db[settings.SESSIONS_COLLECTION]
 
-            await sessions.create_index([("session_id", ASCENDING)], unique=True, name="session_id_unique")
-            await sessions.create_index([("status", ASCENDING)], name="status_idx")
-            await sessions.create_index([("created_at", ASCENDING)], name="created_at_idx")
-            await sessions.create_index([("updated_at", ASCENDING)], name="updated_at_idx")
-            await sessions.create_index([("last_message_at", ASCENDING)], name="last_message_at_idx")
-            await sessions.create_index([("topic", ASCENDING)], name="topic_idx")
-            await sessions.create_index([("relevance_score", ASCENDING)], name="relevance_score_idx")
-            await sessions.create_index(
-                [("pinned", ASCENDING), ("updated_at", ASCENDING)], name="pinned_updated_idx"
-            )
-            await sessions.create_index(
-                [("archived", ASCENDING), ("updated_at", ASCENDING)], name="archived_updated_idx"
-            )
-            await sessions.create_index([("priority", ASCENDING)], name="priority_idx")
-            await sessions.create_index(
-                [("status", ASCENDING), ("updated_at", ASCENDING)], name="status_updated_at_idx"
-            )
+            existing = await sessions.index_information()
+            existing_keys = {tuple(tuple(k) for k in spec["key"]) for spec in existing.values()}
+
+            async def ensure(keys, **opts):
+                key_sig = tuple(tuple(k) for k in keys)
+                if key_sig in existing_keys:
+                    return  # an index on these keys already exists (any name) — leave it
+                await sessions.create_index(keys, **opts)
+                existing_keys.add(key_sig)
+
+            await ensure([("session_id", ASCENDING)], unique=True, name="session_id_unique")
+            await ensure([("status", ASCENDING)], name="status_idx")
+            await ensure([("created_at", ASCENDING)], name="created_at_idx")
+            await ensure([("updated_at", ASCENDING)], name="updated_at_idx")
+            await ensure([("last_message_at", ASCENDING)], name="last_message_at_idx")
+            await ensure([("topic", ASCENDING)], name="topic_idx")
+            await ensure([("relevance_score", ASCENDING)], name="relevance_score_idx")
+            await ensure([("pinned", ASCENDING), ("updated_at", ASCENDING)], name="pinned_updated_idx")
+            await ensure([("archived", ASCENDING), ("updated_at", ASCENDING)], name="archived_updated_idx")
+            await ensure([("priority", ASCENDING)], name="priority_idx")
+            await ensure([("status", ASCENDING), ("updated_at", ASCENDING)], name="status_updated_at_idx")
 
             ttl_days = int(getattr(settings, "SESSION_TTL_DAYS", 30))
             if ttl_days > 0:
-                await sessions.create_index(
+                await ensure(
                     [("ended_at", ASCENDING)],
                     expireAfterSeconds=ttl_days * 24 * 60 * 60,
                     partialFilterExpression={"status": "completed"},

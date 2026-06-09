@@ -3,16 +3,16 @@ ASTA Memory Layer - L3 Vector Store (Pinecone)
 ─────────────────────────────────────────────
 
 This is the L3 semantic vector search layer using Pinecone.
-Uses Google's gemini-embedding-001 model for embeddings (3072 dimensions).
+Embeddings come from the unified memory embedding function
+(memory.embeddings.embed → sentence-transformers all-MiniLM-L6-v2, 384 dims),
+so upsert and query always agree on dimension EMBED_DIM.
 """
 
 import asyncio
 import logging
 from typing import List, Dict, Optional
-import base64
-import json
 from pinecone import Pinecone, ServerlessSpec
-import google.generativeai as genai
+from memory.embeddings import embed as _embed, EMBED_DIM
 from backend.app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -20,9 +20,9 @@ logger = logging.getLogger(__name__)
 class L3Vectors:
     """
     L3 semantic vector search layer using Pinecone.
-    
-    Uses Google's gemini-embedding-001 model (3072 dimensions).
-    Handles session summaries and semantic search.
+
+    Uses the unified MiniLM embedding (EMBED_DIM dims) for both session-summary
+    upserts and semantic queries.
     """
     
     def __init__(self):
@@ -34,32 +34,26 @@ class L3Vectors:
         try:
             # Initialize Pinecone
             self.pc = Pinecone(api_key=settings.PINECONE_API_KEY)
-            
-            # Configure Google AI for embeddings
-            if settings.GEMINI_API_KEY:
-                genai.configure(api_key=settings.GEMINI_API_KEY)
-            else:
-                raise ValueError("GEMINI_API_KEY not found in settings")
-            
+
             # Get or create index
             index_name = settings.PINECONE_INDEX_NAME
-            
+
             # Check if index exists
             existing_indexes = self.pc.list_indexes()
             index_names = [idx.name for idx in existing_indexes]
-            
+
             if index_name not in index_names:
-                # Create new index with Google embedding dimensions
+                # Create index sized to the unified embedding dimension
                 self.pc.create_index(
                     name=index_name,
-                    dimension=3072,  # gemini-embedding-001 dimension
+                    dimension=EMBED_DIM,
                     metric="cosine",
                     spec=ServerlessSpec(
                         cloud="aws",
                         region="us-east-1"
                     )
                 )
-                logger.info(f"Created new Pinecone index: {index_name}")
+                logger.info(f"Created new Pinecone index: {index_name} (dim={EMBED_DIM})")
             
             # Get index reference
             self.index = self.pc.Index(index_name)
@@ -72,46 +66,31 @@ class L3Vectors:
     
     async def embed_text(self, text: str) -> List[float]:
         """
-        Use Google's embedding model to embed text.
-        Returns 3072-dimensional embedding vector.
+        Embed text with the unified MiniLM embedding (EMBED_DIM dims).
+        Returns [] on bad input so callers can skip the upsert/query.
         """
         try:
-            # Handle list inputs - reject them
+            # Handle list inputs - join them
             if isinstance(text, list):
                 logger.error("embed_text received list input - this should be handled at call site")
                 text = " ".join(str(item) for item in text)
             elif not isinstance(text, str):
                 text = str(text)
-                
+
             if not text or not text.strip():
                 logger.error("Empty or whitespace-only text provided for embedding")
                 return []
-                
-            # Run embedding in thread to avoid blocking
-            def _embed():
-                result = genai.embed_content(
-                    model="models/gemini-embedding-001",
-                    content=text.strip(),
-                    task_type="retrieval_document"
-                )
-                return result['embedding']
-            
-            embedding = await asyncio.to_thread(_embed)
-            
-            # Ensure we have a proper list of floats
-            if not embedding or not isinstance(embedding, list):
-                logger.error(f"Invalid embedding result: {type(embedding)}")
-                return []
-                
-            # Convert to list of floats to ensure compatibility
+
+            # Run the (CPU-bound) encode in a thread to avoid blocking the loop
+            embedding = await asyncio.to_thread(_embed, text.strip())
+
             embedding_floats = [float(x) for x in embedding]
-            
-            if len(embedding_floats) != 3072:
-                logger.error(f"Unexpected embedding dimension: {len(embedding_floats)}")
+            if len(embedding_floats) != EMBED_DIM:
+                logger.error(f"Unexpected embedding dimension: {len(embedding_floats)} (expected {EMBED_DIM})")
                 return []
-                
+
             return embedding_floats
-            
+
         except Exception as e:
             logger.error(f"Failed to embed text: {e}")
             return []

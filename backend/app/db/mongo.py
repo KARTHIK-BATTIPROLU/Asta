@@ -86,25 +86,39 @@ class MongoDB:
 
         try:
             sessions = cls.db[config.SESSIONS_COLLECTION]
-            
+
             logger.debug("[MONGO_IDX] Creating session indexes...")
-            sessions.create_index([("session_id", ASCENDING)], unique=True, name="session_id_unique")
-            sessions.create_index([("status", ASCENDING)], name="status_idx")
-            sessions.create_index([("created_at", ASCENDING)], name="created_at_idx")
-            sessions.create_index([("updated_at", ASCENDING)], name="updated_at_idx")
-            sessions.create_index([("last_message_at", ASCENDING)], name="last_message_at_idx")
-            sessions.create_index([("topic", ASCENDING)], name="topic_idx")
-            sessions.create_index([("relevance_score", ASCENDING)], name="relevance_score_idx")
-            sessions.create_index([("pinned", ASCENDING), ("updated_at", ASCENDING)], name="pinned_updated_idx")
-            sessions.create_index([("archived", ASCENDING), ("updated_at", ASCENDING)], name="archived_updated_idx")
-            sessions.create_index([("priority", ASCENDING)], name="priority_idx")
+            # Guard against IndexOptionsConflict: skip any index whose keys already
+            # exist (possibly under a legacy name like 'session_id_unique_v2').
+            existing_keys = {
+                tuple(tuple(k) for k in spec["key"])
+                for spec in sessions.index_information().values()
+            }
+
+            def ensure(keys, **opts):
+                key_sig = tuple(tuple(k) for k in keys)
+                if key_sig in existing_keys:
+                    return
+                sessions.create_index(keys, **opts)
+                existing_keys.add(key_sig)
+
+            ensure([("session_id", ASCENDING)], unique=True, name="session_id_unique")
+            ensure([("status", ASCENDING)], name="status_idx")
+            ensure([("created_at", ASCENDING)], name="created_at_idx")
+            ensure([("updated_at", ASCENDING)], name="updated_at_idx")
+            ensure([("last_message_at", ASCENDING)], name="last_message_at_idx")
+            ensure([("topic", ASCENDING)], name="topic_idx")
+            ensure([("relevance_score", ASCENDING)], name="relevance_score_idx")
+            ensure([("pinned", ASCENDING), ("updated_at", ASCENDING)], name="pinned_updated_idx")
+            ensure([("archived", ASCENDING), ("updated_at", ASCENDING)], name="archived_updated_idx")
+            ensure([("priority", ASCENDING)], name="priority_idx")
 
             # Optimizes: find(status="finalizing").sort(updated_at).limit(batch_size)
-            sessions.create_index([("status", ASCENDING), ("updated_at", ASCENDING)], name="status_updated_at_idx")
+            ensure([("status", ASCENDING), ("updated_at", ASCENDING)], name="status_updated_at_idx")
 
             ttl_days = int(getattr(config, "SESSION_TTL_DAYS", 30))
             if ttl_days > 0:
-                sessions.create_index(
+                ensure(
                     [("ended_at", ASCENDING)],
                     expireAfterSeconds=ttl_days * 24 * 60 * 60,
                     partialFilterExpression={"status": "completed"},

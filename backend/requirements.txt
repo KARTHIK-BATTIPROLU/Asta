@@ -47,3 +47,9 @@ gspread
 apscheduler
 notion-client
 openai
+
+# LangGraph checkpointers (Postgres optional; MongoDB used by default via MONGO_URI)
+langgraph-checkpoint-postgres
+psycopg[binary]
+psycopg-pool
+langgraph-checkpoint-mongodb

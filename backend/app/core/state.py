@@ -30,6 +30,7 @@ class ASTABaseState(TypedDict):
 
 class RoutineState(ASTABaseState):
     """State for routine/daily task workflows"""
+    task_data: dict          # {task, time, priority} for a captured task
     pending_tasks: list
     todays_tasks: list
     weather_data: dict

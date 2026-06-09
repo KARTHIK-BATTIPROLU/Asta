@@ -37,3 +37,8 @@ spacy
 pytextrank
 pydantic-settings
 neo4j
+
+# LangGraph PostgreSQL checkpointer
+langgraph-checkpoint-postgres
+psycopg[binary]
+psycopg-pool

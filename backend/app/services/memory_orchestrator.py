@@ -125,20 +125,26 @@ class MemoryOrchestrator:
         except Exception as e:
             logger.error(f"[L1.5 Prefetch] Background failure: {e}", exc_info=True)
 
-    # ── Retrieval Pipeline (Parallel + Late Fusion) ──────────────────────
+    # ── Retrieval Pipeline (unified) ─────────────────────────────────────
     async def cross_tier_retrieve(self, query: str, top_k: int = 8) -> str:
         """
-        Parallel multi-tier retrieval with Reciprocal Rank Fusion.
-        
-        Architecture:
-          1. Fire Neo4j identity + graph context + Pinecone semantic search SIMULTANEOUSLY
-          2. Use graph clusters to filter Pinecone search
-          3. Merge results via Late Fusion (RRF)
-          4. Format as structured XML context
-        
-        Timeouts: 1.5s hard limit per parallel fetch.
-        Target: <200ms on local network, <500ms cross-region.
+        RETIRED duplicate → now delegates to the unified memory_engine
+        (Neo4j cluster search → Pinecone vector search → Mongo), so there is a
+        single memory brain. Returns formatted context for prompt injection.
+        Falls back to the legacy parallel pipeline only if the engine errors.
         """
+        try:
+            from memory import memory_engine
+            ctx = await memory_engine.get_context_for_session(
+                session_id="retrieval", user_input=query, workflow_type="general"
+            )
+            return memory_engine.format_context_for_prompt(ctx)
+        except Exception as e:
+            logger.warning(f"[RAG] Unified engine retrieval failed ({e}); using legacy pipeline")
+            return await self._legacy_cross_tier_retrieve(query, top_k)
+
+    async def _legacy_cross_tier_retrieve(self, query: str, top_k: int = 8) -> str:
+        """Legacy parallel Neo4j+Pinecone+RRF pipeline (fallback only)."""
         start_time = time.time()
         logger.info(f"[RAG] Starting parallel cross_tier_retrieve for: '{query[:50]}'")
 

@@ -521,10 +521,8 @@ class ActionExecutor:
                 topic = args.get("topic", "")
                 result_text = await YouTubeEngine().generate_script(topic, request.session_id)
             elif engine_name == "developer":
-                from backend.app.workflows.developer_engine import DeveloperEngine
-                project = args.get("project", "")
-                requirements = args.get("requirements", "")
-                result_text = await DeveloperEngine().plan_implementation(project, requirements, request.session_id)
+                # Developer engine removed during cleanup; not part of the current scope.
+                return await self._handle_failure(request, "Developer workflow is not available", start_time)
             else:
                 return await self._handle_failure(request, f"Unknown workflow engine: {engine_name}", start_time)
 
