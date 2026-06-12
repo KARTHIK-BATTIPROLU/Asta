@@ -38,6 +38,7 @@ class SupervisorState(TypedDict, total=False):
     memory_context: str
     start_time: str
     error: str
+    research_context: dict
 
 
 # Keep references to fire-and-forget memory writes so they aren't GC'd mid-flight.
@@ -98,8 +99,13 @@ async def classify_intent(state: SupervisorState) -> SupervisorState:
 
 
 def route_to_workflow(state: SupervisorState) -> str:
-    """Conditional edge: routine goes to the routine workflow, all else to chat."""
-    return "routine_workflow" if state.get("intent") == "routine" else "other_workflow"
+    """Conditional edge: route by classified intent."""
+    intent = state.get("intent")
+    if intent == "routine":
+        return "routine_workflow"
+    if intent == "research":
+        return "research_workflow"
+    return "other_workflow"
 
 
 # Greetings/alarms/end-of-day stay on the existing routine_graph (also driven by
@@ -177,15 +183,44 @@ async def routine_workflow(state: SupervisorState) -> SupervisorState:
     return state
 
 
+async def research_workflow(state: SupervisorState) -> SupervisorState:
+    """Conversational research: clarify angle (interrupt) -> research -> synthesize -> Notion.
+
+    Runs in this checkpointed node so interrupt() can pause/resume on the thread_id.
+    The synthesized result is held in `state["research_context"]` so the Day 3
+    content-chaining step can reuse it on the same thread.
+    """
+    from backend.app.workflows.research_manager import handle_research_turn
+    from langgraph.errors import GraphInterrupt
+
+    try:
+        result = await handle_research_turn(state.get("user_input", ""))
+    except GraphInterrupt:
+        raise  # must propagate so the graph pauses for clarification
+    except Exception as e:
+        logger.error(f"[research_workflow] {e}", exc_info=True)
+        state["response"] = f"Boss, research hit a snag: {e}"
+        state["error"] = str(e)
+        return state
+
+    state["response"] = result.get("response", "Done, boss.")
+    state["task_data"] = result.get("task_data", {}) or {}
+    if result.get("notion_page_id"):
+        state["task_data"]["notion_page_id"] = result["notion_page_id"]
+    if result.get("research_context"):
+        state["research_context"] = result["research_context"]
+    return state
+
+
 async def other_workflow(state: SupervisorState) -> SupervisorState:
     """Natural-language chat fallback (also catches research/linkedin for now)."""
     intent = state.get("intent", "other")
     text = state.get("user_input", "")
     try:
-        if intent in ("research", "linkedin"):
+        if intent == "linkedin":
             note = (
-                f"(The {intent} workflow isn't wired up yet — answer conversationally "
-                f"and let him know it's coming.)\n\n"
+                "(The content/linkedin workflow isn't wired up yet — answer "
+                "conversationally and let him know it's coming.)\n\n"
             )
             text = note + text
         # Inject recalled long-term memory (from memory_engine) into the prompt.
@@ -236,15 +271,18 @@ def _build():
     g = StateGraph(SupervisorState)
     g.add_node("classify_intent", classify_intent)
     g.add_node("routine_workflow", routine_workflow)
+    g.add_node("research_workflow", research_workflow)
     g.add_node("other_workflow", other_workflow)
     g.add_node("save_session", save_session)
 
     g.add_edge(START, "classify_intent")
     g.add_conditional_edges("classify_intent", route_to_workflow, {
         "routine_workflow": "routine_workflow",
+        "research_workflow": "research_workflow",
         "other_workflow": "other_workflow",
     })
     g.add_edge("routine_workflow", "save_session")
+    g.add_edge("research_workflow", "save_session")
     g.add_edge("other_workflow", "save_session")
     g.add_edge("save_session", END)
     return g
@@ -333,7 +371,7 @@ async def run_supervisor_graph(session_id: str, user_input: str, messages: list 
             return {
                 "session_id": session_id,
                 "user_input": user_input,
-                "intent": "routine",
+                "intent": final.get("intent", "other") if isinstance(final, dict) else "other",
                 "response": question,
                 "task_data": {},
                 "awaiting_clarification": True,

@@ -25,12 +25,12 @@
 - [x] Commit: "Day1 spine: one supervisor, firing reminders, ws auth"
 
 ## DAY 2 — RESEARCH WIRED
-- [ ] `research` intent routed in supervisor (supervisor-owned nodes so interrupt binds)
-- [ ] Clarifying questions via interrupt (angle/depth), then Serper+scrape+arxiv research
-- [ ] Notion Research DB page: summary / researched points / combined takeaways
-- [ ] Research result held in thread state + saved to memory
-- [ ] Acceptance conversation passes; Neo4j nodes + Pinecone vectors grew
-- [ ] Commit: "Day2 research vertical live"
+- [x] `research` intent routed in supervisor (supervisor-owned nodes so interrupt binds)
+- [x] Clarifying questions via interrupt (angle/depth), then Serper+scrape+arxiv research
+- [x] Notion Research DB page: summary / researched points / combined takeaways
+- [x] Research result held in thread state + saved to memory
+- [x] ⚠️ partial — Acceptance conversation passes; Pinecone vectors grew (4→5). Neo4j unverifiable: Aura instance `c706f89b` is a dead hostname (NXDOMAIN), see BLOCKED.md
+- [x] Commit: "Day2 research vertical live"
 
 ## DAY 3 — CONTENT CHAINED
 - [ ] `backend/preferences/content_style_prefs.json` created from Kartik's style file
