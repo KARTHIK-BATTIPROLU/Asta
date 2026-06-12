@@ -35,3 +35,57 @@ this is not a sandbox/DNS restriction, the hostname itself no longer exists.
 state (Mongo checkpointer) independent of Neo4j, so Day 3 content-chaining is NOT
 affected. Memory recall (test #6) will work via L3 Pinecone + L4 Mongo even with L2
 down, just without the entity-graph cross-linking.
+
+## content_style_prefs.json is a PLACEHOLDER (Day 3, item 1)
+
+**Item:** D3.1 requires `backend/preferences/content_style_prefs.json` built from
+Kartik's real ChatGPT-derived style file. No such file was found anywhere in the
+repo (only `linkedin_prefs.json` / `youtube_prefs.json` / `instagram_prefs.json`
+existed, which are platform-specific, not the master style overlay).
+
+**What was done:** Created `backend/preferences/content_style_prefs.json` as a
+PLACEHOLDER following the schema the BLUEPRINT specifies (tone / structure / hooks /
+hashtags / emoji / avoid / per_platform), seeded with reasonable first-principles
+defaults consistent with the existing per-platform prefs files. It is marked
+`"_placeholder": true` with a `"_note"` field. `content_manager.py` loads and merges
+it with the platform-specific prefs file for every generation, and the
+"remember this for my posts" voice-update path
+(`preferences_service.update_from_voice("content_style", ...)`) writes directly into
+this doc in Mongo (`preferences` collection, `type="content_style"`), so Kartik's
+real preferences will naturally override the placeholder once he starts using it.
+
+**What Kartik must do:** Either (a) say "remember this for my posts: ..." a few
+times to organically build up `content_style_prefs` in Mongo, or (b) hand Claude
+Code his real ChatGPT-derived style file and ask it to replace
+`backend/preferences/content_style_prefs.json` with the real values (same schema).
+
+## NOTE (not blocking): LangGraph 1.1.3 — second interrupt() in a resumed node
+
+**Discovered during D3.4.** If a supervisor node calls `interrupt()` a SECOND time
+during a RESUMED execution (i.e., the node was already resumed once via
+`Command(resume=...)`, and hits a brand-new `interrupt()` further down), the
+resulting checkpoint has `snap.interrupts` non-empty but `snap.next == ()`. A
+THIRD invocation's `Command(resume=...)` then finds no resumable task and the
+graph runs from an empty fresh state instead — producing an unrelated generic
+response (confirmed via a standalone repro script against `debug-interrupt-test-2`,
+both in-process and cross-process).
+
+**Workaround used in `content_workflow`** (`backend/app/workflows/content_manager.py`):
+only ONE `interrupt()` call total ("research first or raw?"). The
+review/regenerate step is NOT a second `interrupt()` — instead the draft +
+"looks good or want changes?" is returned as a normal response, with
+`content_state["phase"] = "awaiting_review"` persisted on the thread (LastValue
+channel). `classify_intent` short-circuits the next turn straight back to
+`content_workflow` based on that phase. `run_supervisor_graph`'s resume-detection
+was also loosened to `snap.interrupts` alone (was `snap.next AND snap.interrupts`),
+since `snap.next` can't be trusted as the resumability signal.
+
+**Latent same-class risk:** `task_manager._handle_reschedule` (around
+`backend/app/workflows/task_manager.py:272-282`) has TWO sequential `interrupt()`
+calls ("which task?" then "what time?") in one handler. If a single message
+triggers BOTH (ambiguous task name AND no new time given), the second interrupt
+may hit this same checkpoint issue on the next reply. Not fixed — out of scope for
+Day 3 (pre-existing Day 1 code, "never refactor beyond task demands"), and likely
+rare in practice (one ambiguity at a time is the common case). Flag for whoever
+picks up the task_manager regression test in the final 9-test pass — if it fails,
+apply the same phase-persistence pattern.

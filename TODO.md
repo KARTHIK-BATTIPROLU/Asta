@@ -33,13 +33,13 @@
 - [x] Commit: "Day2 research vertical live"
 
 ## DAY 3 — CONTENT CHAINED
-- [ ] `backend/preferences/content_style_prefs.json` created from Kartik's style file
-- [ ] `content` intent + chained flow (uses thread research if present; else offers research / raw topic)
-- [ ] Post/script generation per platform prefs; interrupt for review; regenerate on feedback
-- [ ] Images: 2 variants via image_service on request
-- [ ] Final bundle logged to Notion Content DB (handoff to external posting pipeline)
-- [ ] "Remember this for my posts" updates preferences via voice-update path
-- [ ] Full §4 one-sitting flow passes on one thread
+- [x] ⚠️ partial — `backend/preferences/content_style_prefs.json` created as PLACEHOLDER (Kartik's real style file not found in repo); see BLOCKED.md
+- [x] `content` intent + chained flow (uses thread research if present; else offers research / raw topic)
+- [x] Post/script generation per platform prefs; review (draft + question, phase-persisted); regenerate on feedback
+- [x] Images: 2 variants via image_service on request
+- [x] Final bundle logged to Notion Content DB (handoff to external posting pipeline)
+- [x] "Remember this for my posts" updates preferences via voice-update path
+- [x] Full §4 one-sitting flow passes on one thread
 - [ ] Commit: "Day3 research→content chain live"
 
 ## DAY 4 — VOICE + TEST UI

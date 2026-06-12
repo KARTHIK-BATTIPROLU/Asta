@@ -69,12 +69,14 @@ class ImageService:
         from backend.app.core.llm_factory import llm_router
         
         try:
-            return await llm_router.invoke_with_system(
+            raw = await llm_router.invoke_with_system(
                 "image_prompt",
-                "Generate a professional LinkedIn image prompt. Clean, modern, "
-                "tech-focused. No text in image. Max 50 words.",
+                "Output ONLY an image generation prompt - no preamble, no quotes, no "
+                "'here's a prompt:' phrasing, just the prompt text itself. "
+                "Professional, clean, modern, tech-focused. No text in image. Max 50 words.",
                 f"Topic: {topic}\nPost: {post_body[:300]}"
             )
+            return raw.strip().strip('"').strip()
         except Exception as e:
             logger.error(f"Failed to build image prompt: {e}")
             return f"Professional illustration about {topic}, modern tech style, clean design"

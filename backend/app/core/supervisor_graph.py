@@ -18,7 +18,7 @@ from backend.app.core.checkpointer import get_checkpointer
 
 logger = logging.getLogger("SupervisorGraph")
 
-VALID_INTENTS = ("routine", "research", "linkedin", "other")
+VALID_INTENTS = ("routine", "research", "content", "linkedin", "other")
 
 CHAT_SYSTEM = (
     "You are ASTA, Kartik's personal AI assistant. Warm, sharp, concise. "
@@ -39,6 +39,7 @@ class SupervisorState(TypedDict, total=False):
     start_time: str
     error: str
     research_context: dict
+    content_state: dict
 
 
 # Keep references to fire-and-forget memory writes so they aren't GC'd mid-flight.
@@ -60,6 +61,14 @@ async def classify_intent(state: SupervisorState) -> SupervisorState:
     """Classify the user input into routine / research / linkedin / other."""
     text = (state.get("user_input") or "").strip()
 
+    # If content_workflow is awaiting review feedback on a draft from the
+    # previous turn, this message is the answer to that — route straight back
+    # regardless of keywords (see content_manager.py for why this isn't a
+    # second interrupt()).
+    if (state.get("content_state") or {}).get("phase") == "awaiting_review":
+        state["intent"] = "content"
+        return state
+
     # Fast keyword path for the routine vertical (cheap + reliable).
     low = text.lower()
     routine_kw = ["remind", "remimder", "reminder", "schedule", "task", "tasks", "add a",
@@ -72,14 +81,24 @@ async def classify_intent(state: SupervisorState) -> SupervisorState:
         state["intent"] = "routine"
         return state
 
+    # Fast keyword path for content creation (LinkedIn/YouTube/Instagram posts
+    # and scripts), including the "remember this for my posts" pref-update phrase.
+    content_kw = ["linkedin", "instagram", "youtube", "carousel", "reel script", "video script",
+                  "write a post", "write a script", "make me a post", "make a post", "create a post",
+                  "draft a post", "post about", "content for", "caption for",
+                  "remember this for my post", "remember this for my content"]
+    if any(k in low for k in content_kw):
+        state["intent"] = "content"
+        return state
+
     try:
         raw = await acomplete(
             system=(
                 "Classify the user's message into exactly one label: "
-                "routine, research, linkedin, or other. "
+                "routine, research, content, or other. "
                 "routine = reminders/tasks/scheduling/daily planning. "
                 "research = deep research / web lookup. "
-                "linkedin = social content creation. "
+                "content = social media content creation (LinkedIn post, YouTube script, Instagram caption). "
                 "other = anything else. Reply with ONLY the label."
             ),
             user=text,
@@ -105,6 +124,8 @@ def route_to_workflow(state: SupervisorState) -> str:
         return "routine_workflow"
     if intent == "research":
         return "research_workflow"
+    if intent in ("content", "linkedin"):
+        return "content_workflow"
     return "other_workflow"
 
 
@@ -212,17 +233,41 @@ async def research_workflow(state: SupervisorState) -> SupervisorState:
     return state
 
 
+async def content_workflow(state: SupervisorState) -> SupervisorState:
+    """Conversational content creation: chains off `research_context` if present.
+
+    Runs in this checkpointed node so interrupt() (review / regenerate, and
+    optionally "research first?") can pause/resume on the thread_id.
+    """
+    from backend.app.workflows.content_manager import handle_content_turn
+    from langgraph.errors import GraphInterrupt
+
+    try:
+        result = await handle_content_turn(
+            state.get("user_input", ""), state.get("research_context") or {},
+            state.get("content_state") or {},
+        )
+    except GraphInterrupt:
+        raise  # must propagate so the graph pauses for clarification/review
+    except Exception as e:
+        logger.error(f"[content_workflow] {e}", exc_info=True)
+        state["response"] = f"Boss, content creation hit a snag: {e}"
+        state["error"] = str(e)
+        state["content_state"] = {}  # don't get stuck in awaiting_review on error
+        return state
+
+    state["response"] = result.get("response", "Done, boss.")
+    state["task_data"] = result.get("task_data", {}) or {}
+    state["content_state"] = result.get("content_state", {}) or {}
+    if result.get("notion_page_id"):
+        state["task_data"]["notion_page_id"] = result["notion_page_id"]
+    return state
+
+
 async def other_workflow(state: SupervisorState) -> SupervisorState:
-    """Natural-language chat fallback (also catches research/linkedin for now)."""
-    intent = state.get("intent", "other")
+    """Natural-language chat fallback."""
     text = state.get("user_input", "")
     try:
-        if intent == "linkedin":
-            note = (
-                "(The content/linkedin workflow isn't wired up yet — answer "
-                "conversationally and let him know it's coming.)\n\n"
-            )
-            text = note + text
         # Inject recalled long-term memory (from memory_engine) into the prompt.
         system = CHAT_SYSTEM
         mem = (state.get("memory_context") or "").strip()
@@ -272,6 +317,7 @@ def _build():
     g.add_node("classify_intent", classify_intent)
     g.add_node("routine_workflow", routine_workflow)
     g.add_node("research_workflow", research_workflow)
+    g.add_node("content_workflow", content_workflow)
     g.add_node("other_workflow", other_workflow)
     g.add_node("save_session", save_session)
 
@@ -279,10 +325,12 @@ def _build():
     g.add_conditional_edges("classify_intent", route_to_workflow, {
         "routine_workflow": "routine_workflow",
         "research_workflow": "research_workflow",
+        "content_workflow": "content_workflow",
         "other_workflow": "other_workflow",
     })
     g.add_edge("routine_workflow", "save_session")
     g.add_edge("research_workflow", "save_session")
+    g.add_edge("content_workflow", "save_session")
     g.add_edge("other_workflow", "save_session")
     g.add_edge("save_session", END)
     return g
@@ -324,10 +372,13 @@ async def run_supervisor_graph(session_id: str, user_input: str, messages: list 
     config = {"configurable": {"thread_id": session_id or "default"}}
 
     # Is this thread waiting on a clarification (interrupt)? If so, resume it.
+    # Note: after a SECOND interrupt() raised during a resumed node execution,
+    # `snap.next` can be `()` even though `snap.interrupts` is non-empty — so
+    # `interrupts` alone is the reliable signal here.
     resuming = False
     try:
         snap = await graph.aget_state(config)
-        if snap and snap.next and getattr(snap, "interrupts", None):
+        if snap and getattr(snap, "interrupts", None):
             resuming = True
     except Exception as e:
         logger.debug(f"[run_supervisor_graph] state check skipped: {e}")

@@ -19,3 +19,4 @@ serviceAccountKey.json
 
 # Generated
 /tmp/asta_images/
+server.log

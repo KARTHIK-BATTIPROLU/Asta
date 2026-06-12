@@ -292,11 +292,12 @@ class NotionService:
     # ── Content ───────────────────────────────────────────────────────────
 
     async def create_linkedin_page(
-        self, 
-        topic: str, 
+        self,
+        topic: str,
         post_body: str,
-        hashtags: list, 
-        discussion_summary: str
+        hashtags: list,
+        discussion_summary: str,
+        images: list = None,
     ) -> str:
         """Create LinkedIn content page. Returns page_id."""
         try:
@@ -308,12 +309,13 @@ class NotionService:
                 "Workflow": {"select": {"name": "LinkedIn"}},
             }
             blocks = [
-                _h2("Discussion Summary"), 
+                _h2("Discussion Summary"),
                 _paragraph(discussion_summary),
-                _h2("Post Body"), 
+                _h2("Post Body"),
                 _paragraph(post_body),
-                _h2("Hashtags"), 
+                _h2("Hashtags"),
                 _paragraph(" ".join(hashtags)),
+                *_images_section(images),
             ]
             page = await self.client.pages.create(
                 parent={"database_id": settings.NOTION_CONTENT_DB},
@@ -326,11 +328,12 @@ class NotionService:
             raise
 
     async def create_youtube_page(
-        self, 
-        topic: str, 
+        self,
+        topic: str,
         script: str,
-        research_points: list, 
-        metadata: dict
+        research_points: list,
+        metadata: dict,
+        images: list = None,
     ) -> str:
         """Create YouTube content page. Returns page_id."""
         try:
@@ -339,15 +342,17 @@ class NotionService:
                 "Name": {"title": [{"text": {"content": f"YouTube: {topic} — {today}"}}]},
                 "Date": {"date": {"start": today}},
                 "Status": {"select": {"name": "Script Ready"}},
+                "Workflow": {"select": {"name": "YouTube"}},
             }
             blocks = [
-                _h2("Research Points"), 
+                _h2("Research Points"),
                 *[_bullet(p) for p in research_points],
-                _h2("Full Script"), 
+                _h2("Full Script"),
                 _paragraph(script),
                 _h2("Video Metadata"),
                 _paragraph(f"Title ideas: {', '.join(metadata.get('title_ideas',[]))}"),
                 _paragraph(f"Tags: {', '.join(metadata.get('tags',[]))}"),
+                *_images_section(images),
             ]
             page = await self.client.pages.create(
                 parent={"database_id": settings.NOTION_YOUTUBE_DB},
@@ -360,11 +365,12 @@ class NotionService:
             raise
 
     async def create_instagram_page(
-        self, 
-        topic: str, 
+        self,
+        topic: str,
         caption: str,
-        hashtags: list, 
-        slides: list
+        hashtags: list,
+        slides: list,
+        images: list = None,
     ) -> str:
         """Create Instagram content page. Returns page_id."""
         try:
@@ -373,17 +379,19 @@ class NotionService:
                 "Name": {"title": [{"text": {"content": f"Instagram: {topic} — {today}"}}]},
                 "Date": {"date": {"start": today}},
                 "Status": {"select": {"name": "Draft"}},
+                "Workflow": {"select": {"name": "Instagram"}},
             }
             slide_blocks = []
             for i, slide in enumerate(slides):
                 slide_blocks.append(_h2(f"Slide {i+1}"))
                 slide_blocks.append(_paragraph(slide))
             blocks = [
-                _h2("Caption"), 
+                _h2("Caption"),
                 _paragraph(caption),
-                _h2("Hashtags"), 
+                _h2("Hashtags"),
                 _paragraph(" ".join(hashtags)),
-                *slide_blocks
+                *slide_blocks,
+                *_images_section(images),
             ]
             page = await self.client.pages.create(
                 parent={"database_id": settings.NOTION_CONTENT_DB},
@@ -504,6 +512,24 @@ def _paragraph(text: str) -> dict:
             "rich_text": [{"type": "text", "text": {"content": safe}}]
         }
     }
+
+
+def _images_section(images: list) -> list:
+    """Build an 'Images' block section from image_service.generate_images() output.
+
+    Real Imagen output is base64 (can't be embedded as a Notion image block
+    without external hosting), so we log the prompt either way — Kartik can
+    regenerate via DALL-E/Midjourney from the prompt if Imagen wasn't available.
+    """
+    if not images:
+        return []
+    blocks = [_h2("Images")]
+    for i, img in enumerate(images, 1):
+        if img.get("type") == "base64":
+            blocks.append(_paragraph(f"Image {i}: generated via Imagen. Prompt: {img.get('prompt','')[:400]}"))
+        else:
+            blocks.append(_paragraph(f"Image {i} prompt (use with DALL-E/Midjourney): {img.get('prompt','')[:500]}"))
+    return blocks
 
 
 def _bullet(text: str) -> dict:

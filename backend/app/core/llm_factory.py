@@ -19,6 +19,10 @@ _GROQ_MODELS = {
     "classify": "llama-3.1-8b-instant",
     "quick": "llama-3.1-8b-instant",
     "generate": "llama-3.3-70b-versatile",
+    "research_synthesis": "llama-3.3-70b-versatile",
+    "post_generation": "llama-3.3-70b-versatile",
+    "script_generation": "llama-3.3-70b-versatile",
+    "content_generation": "llama-3.3-70b-versatile",
     "default": "llama-3.1-8b-instant",
 }
 
