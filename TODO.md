@@ -22,7 +22,7 @@
 - [x] 2-minute-out reminder test passes end-to-end
 - [x] WS `/ws/conversation` bearer auth re-enabled (frontend + mobile send token)
 - [x] One venv, one requirements.txt; hardcoded OpenWeather key moved to .env
-- [ ] Commit: "Day1 spine: one supervisor, firing reminders, ws auth"
+- [x] Commit: "Day1 spine: one supervisor, firing reminders, ws auth"
 
 ## DAY 2 — RESEARCH WIRED
 - [ ] `research` intent routed in supervisor (supervisor-owned nodes so interrupt binds)
