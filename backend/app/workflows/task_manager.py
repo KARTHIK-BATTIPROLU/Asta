@@ -12,7 +12,7 @@ and resumes correctly on the user's next message via Command(resume=...).
 import logging
 import re
 import functools
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from rapidfuzz import fuzz
@@ -63,6 +63,26 @@ def classify_action(text: str) -> str:
 
 # ── LLM extraction helpers ─────────────────────────────────────────────────────
 
+_RELATIVE_TIME_RE = re.compile(
+    r'^\s*(?:in\s+)?(\d+)\s*(hour|hr|minute|min|second|sec)s?\s*$', re.IGNORECASE
+)
+_UNIT_SECONDS = {"hour": 3600, "hr": 3600, "minute": 60, "min": 60, "second": 1, "sec": 1}
+
+
+def _normalize_time_phrase(time_str: str) -> str:
+    """Convert a relative duration ("in 5 minutes", "2 hours") to an absolute
+    HH:MM (IST) string, since _parse_reminder_datetime only understands
+    absolute times. Absolute phrases ("5pm", "17:00") pass through unchanged."""
+    if not time_str:
+        return time_str
+    m = _RELATIVE_TIME_RE.match(time_str.strip())
+    if not m:
+        return time_str
+    amount, unit = int(m.group(1)), m.group(2).lower()
+    target = datetime.now(IST) + timedelta(seconds=amount * _UNIT_SECONDS[unit])
+    return target.strftime("%H:%M")
+
+
 async def _extract_task(user_input: str) -> dict:
     """Pull task name / time / priority out of a create request."""
     raw = await acomplete(
@@ -88,7 +108,7 @@ async def _extract_task(user_input: str) -> dict:
             p = line.split(":", 1)[1].strip().lower()
             if p in ("high", "medium", "low"):
                 priority = p
-    return {"task": task_name, "time": scheduled_time, "priority": priority}
+    return {"task": task_name, "time": _normalize_time_phrase(scheduled_time), "priority": priority}
 
 
 async def _extract_target_and_time(user_input: str) -> dict:
@@ -154,16 +174,21 @@ def _parse_reminder_datetime(task_date: str, scheduled_time: str):
 
 async def _fire_reminder(page_id: str, task_name: str, scheduled_time: str):
     """APScheduler callback: broadcast a proactive reminder over WS and mark it reminded."""
-    from backend.app.api.ws_routes import broadcast_message
+    from backend.app.api.ws_routes import broadcast_message, synthesize_proactive_audio_b64
 
     name = _clean_name(task_name)
+    text = f"Boss — {name} — it's {scheduled_time}."
+    audio_b64 = await synthesize_proactive_audio_b64(text)
     try:
-        await broadcast_message({
+        payload = {
             "type": "asta_proactive",
             "trigger": "reminder",
-            "response": f"Boss — {name} — it's {scheduled_time}.",
+            "response": text,
             "page_id": page_id,
-        })
+        }
+        if audio_b64:
+            payload["audio_base64"] = audio_b64
+        await broadcast_message(payload)
     except Exception as e:
         logger.error(f"[task_manager] reminder broadcast failed for {page_id}: {e}")
 

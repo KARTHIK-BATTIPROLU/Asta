@@ -40,14 +40,14 @@
 - [x] Final bundle logged to Notion Content DB (handoff to external posting pipeline)
 - [x] "Remember this for my posts" updates preferences via voice-update path
 - [x] Full §4 one-sitting flow passes on one thread
-- [ ] Commit: "Day3 research→content chain live"
+- [x] Commit: "Day3 research→content chain live"
 
 ## DAY 4 — VOICE + TEST UI
-- [ ] Voice routes research/content intents correctly; long outputs summarized for TTS
-- [ ] React UI: persistent session, interrupt questions UI, drafts + images render, TTS playback
-- [ ] Reminder fire delivered to open WS client (visible/audible)
-- [ ] Morning brief manually triggered through NEW supervisor (weather + tasks [+ news]) and speaks
-- [ ] Commit: "Day4 voice + cockpit solid"
+- [x] Voice routes research/content intents correctly; long outputs summarized for TTS
+- [x] React UI: persistent session, interrupt questions UI, drafts + images render, TTS playback
+- [x] Reminder fire delivered to open WS client (visible/audible)
+- [x] Morning brief manually triggered through NEW supervisor (weather + tasks [+ news]) and speaks
+- [x] Commit: "Day4 voice + cockpit solid"
 
 ## DAY 5 — MOBILE + PROOF
 - [ ] ASTA MOBILE submodule initialized, pointed at backend (ngrok auto-discover), bearer in config

@@ -155,3 +155,34 @@ async def handle_chat(req: ChatRequest, token: str = Depends(verify_token)):
     logger.debug(f"POST /api/chat full reply text: {full_reply}")
 
     return ChatResponse(session_id=session_id, reply=full_reply, audio_base64=audio_base64)
+
+
+@router.post("/trigger/morning-brief")
+async def trigger_morning_brief(token: str = Depends(verify_token)):
+    """Manually fire the morning brief through the supervisor graph (same
+    input the 5:30 AM scheduler callback uses), broadcasting the result (with
+    spoken audio, best-effort) to any open WS clients."""
+    from backend.app.core.supervisor_graph import run_supervisor_graph
+    from backend.app.api.ws_routes import broadcast_message, synthesize_proactive_audio_b64
+
+    session_id = f"alarm-manual-{uuid.uuid4().hex[:8]}"
+    result = await run_supervisor_graph(
+        session_id=session_id,
+        user_input="morning alarm triggered, give me my morning brief",
+    )
+    response_text = result.get("response", "")
+
+    audio_b64 = await synthesize_proactive_audio_b64(response_text) if response_text else None
+    try:
+        payload = {
+            "type": "asta_proactive",
+            "trigger": "morning_alarm",
+            "response": response_text,
+        }
+        if audio_b64:
+            payload["audio_base64"] = audio_b64
+        await broadcast_message(payload)
+    except Exception as e:
+        logger.error(f"[trigger_morning_brief] broadcast failed: {e}")
+
+    return {"session_id": session_id, "response": response_text, "audio_included": audio_b64 is not None}

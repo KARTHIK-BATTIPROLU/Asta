@@ -233,6 +233,40 @@ body {
   font-style: italic;
 }
 
+.message.proactive .avatar {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.message.proactive .bubble {
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.task-card {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: 10px;
+  background-color: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.task-card a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.clarification-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #f59e0b;
+}
+
 /* Input Area */
 .input-area {
   padding: 1.5rem;

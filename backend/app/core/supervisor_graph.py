@@ -25,6 +25,20 @@ CHAT_SYSTEM = (
     "Call him 'boss'. Reply in natural language, never JSON. Max 80 words."
 )
 
+# Fast keyword paths for classify_intent — also consulted by ws_routes.py to
+# decide whether a WS turn should be routed through the supervisor graph.
+ROUTINE_KEYWORDS = ["remind", "remimder", "reminder", "schedule", "task", "tasks", "add a",
+                    "morning", "night", "wake", "alarm", "plan my day", "to-do", "todo",
+                    # task management: list / complete / reschedule
+                    "my list", "my plan", "my day", "what's on", "whats on", "agenda",
+                    "what do i have", "mark ", "done", "complete", "finished",
+                    "move the", "move my", "reschedule", "postpone", "push the"]
+
+CONTENT_KEYWORDS = ["linkedin", "instagram", "youtube", "carousel", "reel script", "video script",
+                    "write a post", "write a script", "make me a post", "make a post", "create a post",
+                    "draft a post", "post about", "content for", "caption for",
+                    "remember this for my post", "remember this for my content"]
+
 
 # ── STATE ────────────────────────────────────────────────────────────────────
 
@@ -71,23 +85,13 @@ async def classify_intent(state: SupervisorState) -> SupervisorState:
 
     # Fast keyword path for the routine vertical (cheap + reliable).
     low = text.lower()
-    routine_kw = ["remind", "remimder", "reminder", "schedule", "task", "tasks", "add a",
-                  "morning", "night", "wake", "alarm", "plan my day", "to-do", "todo",
-                  # task management: list / complete / reschedule
-                  "my list", "my plan", "my day", "what's on", "whats on", "agenda",
-                  "what do i have", "mark ", "done", "complete", "finished",
-                  "move the", "move my", "reschedule", "postpone", "push the"]
-    if any(k in low for k in routine_kw):
+    if any(k in low for k in ROUTINE_KEYWORDS):
         state["intent"] = "routine"
         return state
 
     # Fast keyword path for content creation (LinkedIn/YouTube/Instagram posts
     # and scripts), including the "remember this for my posts" pref-update phrase.
-    content_kw = ["linkedin", "instagram", "youtube", "carousel", "reel script", "video script",
-                  "write a post", "write a script", "make me a post", "make a post", "create a post",
-                  "draft a post", "post about", "content for", "caption for",
-                  "remember this for my post", "remember this for my content"]
-    if any(k in low for k in content_kw):
+    if any(k in low for k in CONTENT_KEYWORDS):
         state["intent"] = "content"
         return state
 
@@ -347,6 +351,30 @@ def get_supervisor_graph():
         _compiled = _builder.compile(checkpointer=get_checkpointer())
         logger.info("Supervisor graph compiled with checkpointer")
     return _compiled
+
+
+async def is_awaiting_resume(session_id: str) -> bool:
+    """True if this thread is paused on an interrupt() or mid-content-review
+    (content_state.phase == "awaiting_review"), so the next message must be
+    routed straight back into run_supervisor_graph regardless of keywords.
+    Used by ws_routes.py to decide should_use_workflow before classification."""
+    if not session_id:
+        return False
+    try:
+        graph = get_supervisor_graph()
+        config = {"configurable": {"thread_id": session_id}}
+        snap = await graph.aget_state(config)
+        if not snap:
+            return False
+        if getattr(snap, "interrupts", None):
+            return True
+        values = getattr(snap, "values", None) or {}
+        if (values.get("content_state") or {}).get("phase") == "awaiting_review":
+            return True
+        return False
+    except Exception as e:
+        logger.debug(f"[is_awaiting_resume] check skipped: {e}")
+        return False
 
 
 def _pending_interrupt_question(result: dict):

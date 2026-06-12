@@ -17,7 +17,7 @@ from backend.app.services.security import verify_websocket_api_key
 from backend.app.models.action_model import ActionRequest
 from backend.app.core.turn_state import TurnStateMachine, TurnState
 from backend.app.core.task_registry import TaskRegistry
-import json, asyncio, logging, re, struct, uuid
+import json, asyncio, logging, re, struct, uuid, base64
 
 logger = logging.getLogger("WS_Conversation")
 
@@ -65,6 +65,63 @@ async def broadcast_error(websocket: WebSocket, error_type: str, message: str):
         logger.error(f"[TTS] {error_type}: {message}")
     except Exception as e:
         logger.error(f"[broadcast_error] Failed to send: {e}")
+
+
+async def _speak_text(websocket: WebSocket, text: str, turn_id: str, session_id: str,
+                       redis_pool, tsm: "TurnStateMachine | None" = None):
+    """Stream TTS audio for `text` using the same wire format as the live-chat
+    path (4-byte seq_id header + linear16 PCM, base64-encoded `audio` frames),
+    so the client's existing PCMPlayer can play it unmodified."""
+    text = (text or "").strip()
+    if not text:
+        return
+
+    seq_id = 0
+    if session_id and redis_pool:
+        try:
+            seq_str = await redis_pool.hget(f"asta:session:{session_id}", "sequence_id")
+            seq_id = int(seq_str) if seq_str else 0
+        except Exception:
+            pass
+
+    try:
+        first_chunk = True
+        async for pcm_chunk in synthesize_speech_stream(text):
+            if first_chunk:
+                first_chunk = False
+                if tsm is not None and tsm.state not in (TurnState.SPEAKING, TurnState.IDLE):
+                    try:
+                        await tsm.transition(TurnState.SPEAKING)
+                    except Exception:
+                        pass
+                try:
+                    await websocket.send_json({"type": "status", "status": "speaking", "turn_id": turn_id})
+                except Exception:
+                    pass
+            seq_header = struct.pack(">I", seq_id)
+            encoded = base64.b64encode(seq_header + pcm_chunk).decode("utf-8")
+            try:
+                await websocket.send_json({"type": "audio", "data": encoded})
+            except Exception:
+                break
+    except Exception as e:
+        logger.warning(f"[TTS] _speak_text failed: {e}")
+
+async def synthesize_proactive_audio_b64(text: str) -> str | None:
+    """Best-effort MP3 TTS for a one-off proactive broadcast (reminders, morning
+    brief). Returns base64-encoded MP3 bytes, or None if TTS is unavailable —
+    callers must degrade gracefully (broadcast the text without audio)."""
+    text = (text or "").strip()
+    if not text:
+        return None
+    try:
+        from backend.app.services.deepgram_tts import text_to_speech
+        audio = await text_to_speech(text)
+        return base64.b64encode(audio).decode("utf-8")
+    except Exception as e:
+        logger.debug(f"[TTS] proactive audio skipped: {e}")
+        return None
+
 
 async def fetch_memory_context(user_message: str, session_id: str, skip_rag: bool = False):
     """
@@ -380,14 +437,24 @@ async def conversation_ws(websocket: WebSocket):
 
                 # Get forced tool from intent detector first
                 forced_tool = intent_detector.get_forced_tool(intent)
-                
+
+                # A thread paused on a clarification (interrupt()) or mid content
+                # review (content_state.phase=="awaiting_review") must always
+                # resume through the supervisor, regardless of this turn's
+                # keywords — otherwise the reply gets stranded in plain chat.
+                from backend.app.core.supervisor_graph import is_awaiting_resume, ROUTINE_KEYWORDS, CONTENT_KEYWORDS
+                session_paused = await is_awaiting_resume(session_id)
+
                 # Check if we should route to supervisor for workflow execution
-                # Notion, routine, research, and content intents should use workflows
+                # Notion, routine, research, and content intents should use workflows.
+                # ROUTINE_KEYWORDS/CONTENT_KEYWORDS mirror classify_intent's own fast
+                # paths so this pre-classification stays in sync with the supervisor's.
                 workflow_keywords = ["notion", "task", "routine", "research", "linkedin", "content", "morning", "night", "plan"]
                 should_use_workflow = (
+                    session_paused or
                     forced_tool == "notion" or
                     intent['type'] in ['routine', 'research', 'content'] or
-                    any(kw in transcript.lower() for kw in workflow_keywords)
+                    any(kw in transcript.lower() for kw in workflow_keywords + ROUTINE_KEYWORDS + CONTENT_KEYWORDS)
                 )
                 
                 if should_use_workflow:
@@ -395,6 +462,7 @@ async def conversation_ws(websocket: WebSocket):
                     
                     try:
                         from backend.app.core.supervisor_graph import run_supervisor_graph
+                        from backend.app.core.llm_factory import acomplete
 
                         # Run supervisor graph (it classifies + routes internally)
                         await tsm.transition(TurnState.TOOL_PENDING)
@@ -419,21 +487,64 @@ async def conversation_ws(websocket: WebSocket):
 
                         # Get response from supervisor (graph returns "response")
                         response_text = result.get("response") or result.get("asta_response", "Task completed.")
-                        logger.info(f"[WORKFLOW] Supervisor completed: {result.get('workflow_type', 'unknown')} workflow")
-                        
-                        # Stream response to client
+                        awaiting_clarification = bool(result.get("awaiting_clarification"))
+                        logger.info(f"[WORKFLOW] Supervisor completed: intent={result.get('intent', 'unknown')}")
+
+                        # Stream full response text to client (UI history, unchanged)
                         try:
-                            # Send response in chunks for better UX
                             chunk_size = 50
                             for i in range(0, len(response_text), chunk_size):
                                 chunk = response_text[i:i+chunk_size]
                                 await websocket.send_json({"type": "llm_chunk", "text": chunk, "turn_id": current_turn_id})
                                 await asyncio.sleep(0.05)  # Small delay for streaming effect
-                            
+                        except Exception:
+                            pass
+
+                        # Surface structured results (drafts/images/Notion links,
+                        # or a pending clarification) for the UI to render.
+                        task_data = result.get("task_data") or {}
+                        if task_data or awaiting_clarification:
+                            try:
+                                await websocket.send_json({
+                                    "type": "workflow_result",
+                                    "intent": result.get("intent", ""),
+                                    "task_data": task_data,
+                                    "awaiting_clarification": awaiting_clarification,
+                                    "turn_id": current_turn_id,
+                                })
+                            except Exception:
+                                pass
+
+                        # TTS: speak clarifying questions verbatim (the user must
+                        # answer them); summarize long results into 1-2 spoken
+                        # sentences so the read-aloud doesn't drone on.
+                        voice_text = response_text
+                        if not awaiting_clarification and len(response_text) > 280:
+                            try:
+                                voice_text = await acomplete(
+                                    system=(
+                                        "Summarize this for ASTA to SAY OUT LOUD to Karthik (call him "
+                                        "'boss'). 1-2 short spoken sentences, keep key facts/numbers, "
+                                        "no markdown, no lists, no preamble. Output ONLY the spoken summary."
+                                    ),
+                                    user=response_text[:2500],
+                                    task="quick", temperature=0.3, max_tokens=80,
+                                )
+                                voice_text = (voice_text or "").strip().strip('"') or response_text[:280]
+                            except Exception as sum_err:
+                                logger.debug(f"[WORKFLOW] voice summary skipped: {sum_err}")
+                                voice_text = response_text[:280]
+
+                        try:
+                            await _speak_text(websocket, voice_text, current_turn_id, session_id, redis_pool, tsm)
+                        except Exception as tts_err:
+                            logger.warning(f"[WORKFLOW] TTS synthesis failed: {tts_err}")
+
+                        try:
                             await websocket.send_json({"type": "audio_end", "turn_id": current_turn_id})
                         except Exception:
                             pass
-                        
+
                         # Save to session
                         if session_id:
                             await l1_manager.get_session(session_id).append_turn(transcript, response_text)
@@ -931,8 +1042,10 @@ async def conversation_ws(websocket: WebSocket):
                         logger.error(f"[GRAPH] Failed to check pending confirmations: {graph_err}")
                     
                     finally:
-                        # Transition to IDLE for next turn
-                        await tsm.transition(TurnState.IDLE)
+                        # Transition to IDLE for next turn (already IDLE if the
+                        # transition above at line ~992 ran without error)
+                        if tsm.state != TurnState.IDLE:
+                            await tsm.transition(TurnState.IDLE)
 
             # Execute the parallel turn
             await stream_parallel_turn()

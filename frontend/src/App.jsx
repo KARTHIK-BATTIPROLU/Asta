@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, Bot, User, Loader2, StopCircle, Volume2, VolumeX, Activity, PauseCircle, PlayCircle, Send } from 'lucide-react';
+import { Mic, Bot, User, Loader2, StopCircle, Volume2, VolumeX, Activity, PauseCircle, PlayCircle, Send, Bell, HelpCircle } from 'lucide-react';
 import './App.css';
 
 // CSP-compliant WebSocket URL configuration
@@ -334,6 +334,40 @@ function App() {
           return [...prev, { role: 'user', content: data.text }];
         });
       }
+      return;
+    }
+
+    if (data.type === 'asta_proactive') {
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: data.response || '',
+        proactive: true,
+        trigger: data.trigger,
+      }]);
+      if (data.audio_base64) {
+        try {
+          const audio = new Audio(`data:audio/mpeg;base64,${data.audio_base64}`);
+          audio.play().catch(err => console.warn('Proactive audio playback blocked:', err));
+        } catch (err) {
+          console.warn('Proactive audio failed:', err);
+        }
+      }
+      return;
+    }
+
+    if (data.type === 'workflow_result') {
+      if (data.turn_id && activeTurnIdRef.current && data.turn_id !== activeTurnIdRef.current) return;
+      setMessages(prev => {
+        const idx = llmTempIndexRef.current;
+        if (idx == null || !prev[idx]) return prev;
+        const next = [...prev];
+        next[idx] = {
+          ...next[idx],
+          taskData: data.task_data || {},
+          awaitingClarification: !!data.awaiting_clarification,
+        };
+        return next;
+      });
       return;
     }
 
@@ -971,17 +1005,38 @@ function App() {
 
       <div className="chat-window">
         {messages.map((msg, idx) => (
-          <div key={idx} className={`message ${msg.role} ${msg.isTemp ? 'temp' : ''} ${msg.content.includes("couldn't hear") ? 'error-msg' : ''}`}>
+          <div key={idx} className={`message ${msg.role} ${msg.isTemp ? 'temp' : ''} ${msg.proactive ? 'proactive' : ''} ${msg.content.includes("couldn't hear") ? 'error-msg' : ''}`}>
             {msg.role === 'assistant' && (
                 <div className="avatar">
-                    <Bot size={20} color="white" />
+                    {msg.proactive ? <Bell size={20} color="white" /> : <Bot size={20} color="white" />}
                 </div>
             )}
-            
+
             <div className="bubble">
               {msg.role === 'assistant' ? cleanMessage(msg.content) : msg.content}
+
+              {msg.taskData && Object.keys(msg.taskData).length > 0 && (
+                <div className="task-card">
+                  {msg.taskData.topic && <div><strong>Topic:</strong> {msg.taskData.topic}</div>}
+                  {msg.taskData.platform && <div><strong>Platform:</strong> {msg.taskData.platform}</div>}
+                  {typeof msg.taskData.images === 'number' && msg.taskData.images > 0 && (
+                    <div><strong>Images:</strong> {msg.taskData.images}</div>
+                  )}
+                  {msg.taskData.notion_page_id && (
+                    <a href={`https://www.notion.so/${msg.taskData.notion_page_id.replace(/-/g, '')}`} target="_blank" rel="noopener noreferrer">
+                      Open in Notion
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {msg.awaitingClarification && (
+                <div className="clarification-badge">
+                  <HelpCircle size={14} /> Waiting for your answer
+                </div>
+              )}
             </div>
-            
+
             {msg.role === 'user' && (
                 <div className="avatar">
                     <User size={20} color="white" />
