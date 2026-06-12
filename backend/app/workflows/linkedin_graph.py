@@ -7,7 +7,7 @@ import json
 from langgraph.graph import StateGraph, START, END
 
 from backend.app.core.state import LinkedInState, add_stage
-from backend.app.core.llm_router import llm_router
+from backend.app.core.llm_factory import llm_router
 from backend.app.services.notion_service import notion_service
 from backend.app.services.sheets_service import sheets_service
 from backend.app.services.image_service import image_service

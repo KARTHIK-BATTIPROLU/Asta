@@ -1,3 +1,5 @@
+import os
+import hmac
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from backend.app.services.stt_service import transcribe_audio
 from backend.app.services.llm_service import stream_llm_response
@@ -20,6 +22,41 @@ import json, asyncio, logging, re, struct, uuid
 logger = logging.getLogger("WS_Conversation")
 
 router = APIRouter()
+
+# Bearer token shared with /api/chat (ASTA_API_BEARER_TOKEN). Browsers can't
+# set custom headers on a WebSocket handshake, so we also accept ?token=...
+_WS_BEARER_TOKEN = os.getenv("ASTA_API_BEARER_TOKEN", "").strip()
+
+
+def _verify_ws_token(websocket: WebSocket) -> bool:
+    """Check the bearer token on a WS handshake (query param or Authorization header)."""
+    if not _WS_BEARER_TOKEN:
+        logger.error("[WS] ASTA_API_BEARER_TOKEN not configured — rejecting connection")
+        return False
+
+    token = websocket.query_params.get("token")
+    if not token:
+        auth_header = websocket.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header.split("Bearer ", 1)[1].strip()
+
+    return bool(token) and hmac.compare_digest(token, _WS_BEARER_TOKEN)
+
+
+# ── Proactive broadcast (reminders, alarms, etc.) ───────────────────────────
+_active_connections: set[WebSocket] = set()
+
+
+async def broadcast_message(payload: dict):
+    """Send a JSON message to every connected WS client (best-effort)."""
+    dead = set()
+    for ws in list(_active_connections):
+        try:
+            await ws.send_json(payload)
+        except Exception as e:
+            logger.debug(f"[WS] broadcast_message: dropping dead connection: {e}")
+            dead.add(ws)
+    _active_connections.difference_update(dead)
 
 async def broadcast_error(websocket: WebSocket, error_type: str, message: str):
     """Send error to frontend and log. Used for TTS timeout handling."""
@@ -107,13 +144,13 @@ async def fetch_memory_context(user_message: str, session_id: str, skip_rag: boo
 
 @router.websocket("/ws/conversation")
 async def conversation_ws(websocket: WebSocket):
-    # TODO: Re-enable authentication after frontend is updated
-    # if not verify_websocket_api_key(websocket):
-    #     await websocket.close(code=4001)
-    #     logger.warning("[WS] Unauthorized connection rejected")
-    #     return
+    if not _verify_ws_token(websocket):
+        await websocket.close(code=4001)
+        logger.warning("[WS] Unauthorized connection rejected")
+        return
 
     await websocket.accept()
+    _active_connections.add(websocket)
     logger.info("[WS] Client connected (authenticated)")
     session_id = None
     audio_buffer = bytearray()
@@ -1231,6 +1268,7 @@ async def conversation_ws(websocket: WebSocket):
         logger.error(f"[WS] Critical Connection Error: {e}")
     finally:
         client_active = False # Ensure no residual tasks push messages
+        _active_connections.discard(websocket)
         if session_context["turn_task"] and not session_context["turn_task"].done():
             session_context["turn_task"].cancel()
         if session_context["tts_worker_task"] and not session_context["tts_worker_task"].done():

@@ -51,7 +51,7 @@ class PreferencesService:
     async def update_from_voice(self, pref_type: str, instruction: str) -> str:
         """Parse a natural language update instruction and apply it."""
         try:
-            from backend.app.core.llm_router import llm_router
+            from backend.app.core.llm_factory import llm_router
             
             current = await self.get(pref_type)
             result = await llm_router.invoke_with_system(

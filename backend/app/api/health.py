@@ -163,7 +163,7 @@ async def llm_health_check(token: str = Depends(verify_token)):
     Requires authentication.
     """
     try:
-        from backend.app.core.llm_router import llm_router
+        from backend.app.core.llm_factory import llm_router
         
         # Test a simple invocation
         result = await llm_router.invoke_with_system(

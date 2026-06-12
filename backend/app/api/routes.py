@@ -9,6 +9,7 @@ import hmac
 import logging
 import base64
 import time
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -35,6 +36,7 @@ class ChatRequest(BaseModel):
 
 
 class ChatResponse(BaseModel):
+    session_id: str
     reply: str
     audio_base64: str | None = None
 
@@ -107,11 +109,10 @@ async def handle_chat(req: ChatRequest, token: str = Depends(verify_token)):
     logger.info(f"POST /api/chat received text: {req.message}")
 
     full_reply = ""
+    session_id = req.session_id or str(uuid.uuid4())
     try:
         # Use the supervisor LangGraph for orchestration
         from backend.app.core.supervisor_graph import run_supervisor_graph
-
-        session_id = req.session_id or f"chat-{int(time.time())}"
 
         # Fetch conversation history (best-effort; memory context is injected by the graph)
         history = []
@@ -128,12 +129,12 @@ async def handle_chat(req: ChatRequest, token: str = Depends(verify_token)):
         )
 
         full_reply = result.get("response", "")
-        
-        # Save to session if we have a session_id
-        if req.session_id and full_reply.strip():
+
+        # Save to session
+        if full_reply.strip():
             try:
-                await SessionManager.add_message(req.session_id, "user", req.message)
-                await SessionManager.add_message(req.session_id, "assistant", full_reply.strip())
+                await SessionManager.add_message(session_id, "user", req.message)
+                await SessionManager.add_message(session_id, "assistant", full_reply.strip())
             except Exception as e:
                 logger.error(f"POST /api/chat Error saving messages to SessionManager: {e}")
 
@@ -153,4 +154,4 @@ async def handle_chat(req: ChatRequest, token: str = Depends(verify_token)):
     logger.info(f"POST /api/chat returning reply length: {len(full_reply)}, audio included: {audio_base64 is not None}")
     logger.debug(f"POST /api/chat full reply text: {full_reply}")
 
-    return ChatResponse(reply=full_reply, audio_base64=audio_base64)
+    return ChatResponse(session_id=session_id, reply=full_reply, audio_base64=audio_base64)

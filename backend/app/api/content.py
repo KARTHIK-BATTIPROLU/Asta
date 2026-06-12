@@ -206,7 +206,7 @@ async def get_content_logs(platform: str, token: str = Depends(verify_token)):
 async def seed_calendar(token: str = Depends(verify_token)):
     """Seed initial topics into content calendar (only if empty)."""
     try:
-        from backend.app.core.llm_router import llm_router
+        from backend.app.core.llm_factory import llm_router
         
         db = await get_async_db()
         

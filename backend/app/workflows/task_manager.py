@@ -11,15 +11,20 @@ and resumes correctly on the user's next message via Command(resume=...).
 """
 import logging
 import re
-from datetime import date
+import functools
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 from rapidfuzz import fuzz
+from dateutil import parser as dtparser
 from langgraph.types import interrupt
 
 from backend.app.core.llm_factory import acomplete
 from backend.app.services.notion_service import notion_service
 
 logger = logging.getLogger("TaskManager")
+
+IST = ZoneInfo("Asia/Kolkata")
 
 ASTA_VOICE = (
     "You are ASTA, Karthik's personal AI assistant. Warm, sharp, concise. "
@@ -131,6 +136,61 @@ def _resolve_one(query: str, tasks: list):
     return None, [t for t, _ in ranked]
 
 
+# ── Reminder scheduling ─────────────────────────────────────────────────────────
+
+def _parse_reminder_datetime(task_date: str, scheduled_time: str):
+    """Parse a Notion 'Date' (YYYY-MM-DD) + 'Scheduled Time' (e.g. '5pm') into an
+    IST-aware datetime. Returns None if scheduled_time can't be parsed."""
+    if not scheduled_time:
+        return None
+    try:
+        base = datetime.fromisoformat(task_date)
+        parsed = dtparser.parse(scheduled_time, default=base)
+        return parsed.replace(tzinfo=IST)
+    except (ValueError, OverflowError):
+        logger.warning(f"[task_manager] couldn't parse reminder time {scheduled_time!r} on {task_date!r}")
+        return None
+
+
+async def _fire_reminder(page_id: str, task_name: str, scheduled_time: str):
+    """APScheduler callback: broadcast a proactive reminder over WS and mark it reminded."""
+    from backend.app.api.ws_routes import broadcast_message
+
+    name = _clean_name(task_name)
+    try:
+        await broadcast_message({
+            "type": "asta_proactive",
+            "trigger": "reminder",
+            "response": f"Boss — {name} — it's {scheduled_time}.",
+            "page_id": page_id,
+        })
+    except Exception as e:
+        logger.error(f"[task_manager] reminder broadcast failed for {page_id}: {e}")
+
+    try:
+        await notion_service.update_task_status(page_id, "Reminded")
+    except Exception as e:
+        logger.error(f"[task_manager] reminder status update failed for {page_id}: {e}")
+
+
+def _schedule_reminder(page_id: str, task_name: str, scheduled_time: str, task_date: str) -> bool:
+    """Register a one-time APScheduler job to fire this reminder. Returns True if scheduled."""
+    from backend.app.services.scheduler_service import scheduler_service
+
+    run_at = _parse_reminder_datetime(task_date, scheduled_time)
+    if run_at is None:
+        return False
+    if run_at <= datetime.now(IST):
+        logger.info(f"[task_manager] reminder time {run_at} already past — not scheduling {page_id}")
+        return False
+
+    return scheduler_service.add_one_time_reminder(
+        reminder_id=f"reminder-{page_id}",
+        run_at=run_at,
+        callback=functools.partial(_fire_reminder, page_id, task_name, scheduled_time),
+    )
+
+
 # ── Action handlers ─────────────────────────────────────────────────────────────
 
 async def _handle_create(user_input: str, today: str) -> dict:
@@ -145,6 +205,11 @@ async def _handle_create(user_input: str, today: str) -> dict:
     page_id = await notion_service.create_task(
         task=task, time=scheduled_time, priority=priority, task_date=today,
     )
+    if page_id:
+        try:
+            _schedule_reminder(page_id, task, scheduled_time, today)
+        except Exception as e:
+            logger.error(f"[task_manager] failed to schedule reminder for {page_id}: {e}")
     resp = await acomplete(
         ASTA_VOICE,
         f"Confirm you just added the task '{task}' at {scheduled_time} (priority {priority}) "

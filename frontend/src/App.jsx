@@ -3,7 +3,8 @@ import { Mic, Bot, User, Loader2, StopCircle, Volume2, VolumeX, Activity, PauseC
 import './App.css';
 
 // CSP-compliant WebSocket URL configuration
-const WS_BASE_URL = "ws://localhost:8000/ws/conversation";
+const WS_TOKEN = import.meta.env.VITE_ASTA_API_TOKEN || "";
+const WS_BASE_URL = `ws://localhost:8000/ws/conversation?token=${encodeURIComponent(WS_TOKEN)}`;
 
 // TASK 1: DEFINE STATES
 const STATE = {
@@ -110,7 +111,13 @@ function App() {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const wsRef = useRef(null); 
-  const sessionIdRef = useRef(crypto.randomUUID());
+  const sessionIdRef = useRef((() => {
+    const stored = localStorage.getItem('asta_session_id');
+    if (stored) return stored;
+    const fresh = crypto.randomUUID();
+    localStorage.setItem('asta_session_id', fresh);
+    return fresh;
+  })());
   const wsConnectStartedAtRef = useRef(0);
   const llmTempIndexRef = useRef(null);
   const lastSequenceIdRef = useRef(0);

@@ -375,52 +375,50 @@ async def startup_event():
     # Initialize and start scheduler
     try:
         from backend.app.services.scheduler_service import scheduler_service
-        from backend.app.core.supervisor import run_supervisor
+        from backend.app.core.supervisor_graph import run_supervisor_graph
         import uuid
-        
+
         # Morning alarm callback — fires when scheduler triggers 5:30 AM
         async def morning_alarm_callback():
             try:
                 session_id = f"alarm-{uuid.uuid4().hex[:8]}"
-                result = await run_supervisor(
+                result = await run_supervisor_graph(
                     session_id=session_id,
-                    user_input="morning alarm triggered",
-                    workflow_hint="routine"
+                    user_input="morning alarm triggered, give me my morning brief",
                 )
-                logger.info(f"Morning alarm triggered: {result.get('asta_response', '')[:100]}")
-                
+                logger.info(f"Morning alarm triggered: {result.get('response', '')[:100]}")
+
                 # Try to broadcast to WebSocket clients if available
                 try:
                     from backend.app.api.ws_routes import broadcast_message
                     await broadcast_message({
                         "type": "asta_proactive",
                         "trigger": "morning_alarm",
-                        "response": result.get("asta_response", ""),
+                        "response": result.get("response", ""),
                         "audio_needed": True
                     })
                 except Exception as broadcast_err:
                     logger.debug(f"WebSocket broadcast not available: {broadcast_err}")
             except Exception as e:
                 logger.error(f"Morning alarm callback failed: {e}")
-        
+
         # Night planning callback — fires at 10:30 PM
         async def night_planning_callback():
             try:
                 session_id = f"night-{uuid.uuid4().hex[:8]}"
-                result = await run_supervisor(
+                result = await run_supervisor_graph(
                     session_id=session_id,
                     user_input="night planning session starting",
-                    workflow_hint="routine"
                 )
-                logger.info(f"Night planning triggered: {result.get('asta_response', '')[:100]}")
-                
+                logger.info(f"Night planning triggered: {result.get('response', '')[:100]}")
+
                 # Try to broadcast to WebSocket clients if available
                 try:
                     from backend.app.api.ws_routes import broadcast_message
                     await broadcast_message({
                         "type": "asta_proactive",
                         "trigger": "night_planning",
-                        "response": result.get("asta_response", ""),
+                        "response": result.get("response", ""),
                         "audio_needed": True
                     })
                 except Exception as broadcast_err:
@@ -434,6 +432,25 @@ async def startup_event():
         logger.info("Scheduler started: morning alarm 5:30 AM IST, night planning 10:30 PM IST")
     except Exception as e:
         logger.error(f"Scheduler startup failed: {e}")
+
+    # Reload pending reminders for today (APScheduler's in-memory job store doesn't
+    # survive a restart, so any future reminder needs to be re-registered here).
+    try:
+        from datetime import date as _date
+        from backend.app.services.notion_service import notion_service
+        from backend.app.workflows.task_manager import _schedule_reminder
+
+        today_str = _date.today().isoformat()
+        pending = await notion_service.get_pending_tasks(today_str)
+        rescheduled = 0
+        for t in pending:
+            if t.get("status") == "Reminded":
+                continue
+            if _schedule_reminder(t["page_id"], t["task_name"], t.get("scheduled_time", ""), today_str):
+                rescheduled += 1
+        logger.info(f"Reminder reload: {rescheduled}/{len(pending)} pending task(s) re-scheduled")
+    except Exception as e:
+        logger.error(f"Reminder reload failed: {e}")
     
     # Seed initial data if needed
     try:

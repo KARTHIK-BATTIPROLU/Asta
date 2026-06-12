@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     NEO4J_PASSWORD: str = ""
     NEO4J_DATABASE: str = "neo4j"
     ANTHROPIC_API_KEY: str = ""
-    OPENWEATHER_API_KEY: str = "a08686f9b036609612801c0ef14236ce"
+    OPENWEATHER_API_KEY: str = ""
     GEMINI_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
     SERPER_API: str = ""

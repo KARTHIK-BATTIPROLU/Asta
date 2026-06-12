@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-pymongo
+pymongo==4.9.0
 motor
 python-dotenv
 httpx
@@ -18,12 +18,14 @@ PyAudio
 langchain
 langgraph
 langchain-groq
+langchain-google-genai
 langchain-community
 regex
 google-api-python-client
 google-auth
 google-auth-httplib2
 google-auth-oauthlib
+google-generativeai
 sentence-transformers
 pinecone
 rapidfuzz
@@ -37,8 +39,15 @@ spacy
 pytextrank
 pydantic-settings
 neo4j
+# Additional dependencies
+beautifulsoup4
+gspread
+apscheduler
+notion-client
+openai
 
-# LangGraph PostgreSQL checkpointer
+# LangGraph checkpointers (Postgres optional; MongoDB used by default via MONGO_URI)
 langgraph-checkpoint-postgres
 psycopg[binary]
 psycopg-pool
+langgraph-checkpoint-mongodb

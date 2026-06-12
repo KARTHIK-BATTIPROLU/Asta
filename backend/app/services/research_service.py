@@ -129,7 +129,7 @@ class ResearchService:
 
     async def deep_research(self, topic: str, extra_queries: list = None) -> dict:
         """Full research pipeline. Returns aggregated sources."""
-        from backend.app.core.llm_router import llm_router
+        from backend.app.core.llm_factory import llm_router
         
         # Generate search queries if not provided
         if not extra_queries:

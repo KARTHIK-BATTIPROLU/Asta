@@ -6,7 +6,7 @@ import logging
 from langgraph.graph import StateGraph, START, END
 
 from backend.app.core.state import HabitState, add_stage
-from backend.app.core.llm_router import llm_router
+from backend.app.core.llm_factory import llm_router
 from backend.app.services.notion_service import notion_service
 
 logger = logging.getLogger(__name__)

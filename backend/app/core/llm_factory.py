@@ -98,3 +98,38 @@ async def acomplete(
 
 # Convenience export
 llm = acomplete
+
+
+# Task types that need the larger "generate" model; everything else uses the
+# fast 8b-instant model (mirrors the old llm_router model selection).
+_GENERATE_TASK_TYPES = {
+    "post_generation", "research_synthesis", "script_generation", "content_generation",
+}
+
+
+class _LLMRouterCompat:
+    """Drop-in replacement for the old `llm_router` global, backed by acomplete.
+
+    Lets workflow nodes keep their `llm_router.invoke_with_system(task_type, system, user)`
+    call shape while routing through the single llm_factory provider chain.
+    """
+
+    async def invoke_with_system(self, task_type: str, system_prompt: str, user_message: str) -> str:
+        task = "generate" if task_type in _GENERATE_TASK_TYPES else "default"
+        return await acomplete(system_prompt, user_message, task=task, max_tokens=1500)
+
+    async def invoke(self, task_type: str, messages: list) -> dict:
+        system_prompt = ""
+        user_parts = []
+        for m in messages:
+            if m.get("role") == "system":
+                system_prompt = m.get("content", "")
+            else:
+                user_parts.append(m.get("content", ""))
+        task = "generate" if task_type in _GENERATE_TASK_TYPES else "default"
+        content = await acomplete(system_prompt, "\n".join(user_parts), task=task, max_tokens=1000)
+        return {"content": content}
+
+
+# Back-compat global for workflows migrating off core.llm_router.
+llm_router = _LLMRouterCompat()
