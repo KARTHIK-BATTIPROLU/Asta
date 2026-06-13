@@ -99,11 +99,18 @@ async def classify_intent(state: SupervisorState) -> SupervisorState:
         raw = await acomplete(
             system=(
                 "Classify the user's message into exactly one label: "
-                "routine, research, content, or other. "
-                "routine = reminders/tasks/scheduling/daily planning. "
-                "research = deep research / web lookup. "
-                "content = social media content creation (LinkedIn post, YouTube script, Instagram caption). "
-                "other = anything else. Reply with ONLY the label."
+                "routine, research, content, or other.\n"
+                "routine = the user wants to CREATE, LIST, COMPLETE, or RESCHEDULE a "
+                "to-do/reminder/task, or asks for their daily plan/agenda/morning brief.\n"
+                "research = an explicit request to look something up / research a topic in depth.\n"
+                "content = social media content creation (LinkedIn post, YouTube script, Instagram caption).\n"
+                "other = everything else: general conversation, questions, statements of fact, "
+                "preferences, opinions, or asking the assistant to recall something it was told before.\n"
+                "Examples: 'what is my project codename?' -> other. "
+                "'remember that I like oat milk' -> other. "
+                "'add a task to call mom' -> routine. "
+                "'what's on my list today' -> routine.\n"
+                "Reply with ONLY the label."
             ),
             user=text,
             task="classify",

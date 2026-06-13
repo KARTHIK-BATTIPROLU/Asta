@@ -20,3 +20,5 @@ serviceAccountKey.json
 # Generated
 /tmp/asta_images/
 server.log
+ngrok.log
+ASTA MOBILE/gradle_compile.log

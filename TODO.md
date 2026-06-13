@@ -50,9 +50,9 @@
 - [x] Commit: "Day4 voice + cockpit solid"
 
 ## DAY 5 — MOBILE + PROOF
-- [ ] ASTA MOBILE submodule initialized, pointed at backend (ngrok auto-discover), bearer in config
-- [ ] Conversation works from phone; reminder notifies on phone
-- [ ] Memory proof: 3 themed conversations → recall question answers with specifics + Notion link
+- [x] ASTA MOBILE submodule initialized, pointed at backend (ngrok auto-discover), bearer in config — `AstaNetworkClient`/`ASTAForegroundService` bearer + ngrok-discovered BASE_URL fixed; verified live via ngrok `/api/ngrok-url` + `/api/me` + `/api/chat`
+- [x] ⚠️ partial — Conversation works from phone (backend reachable + authed end-to-end via ngrok, gradle build green); reminder notifies on phone via new `ProactiveListenerService` (WS → `asta_proactive` → notification), wired into `MainActivity` + manifest. On-device verification not possible (no emulator/device attached, `adb devices` empty) — flagged for Kartik
+- [x] ⚠️ partial — Memory proof: 3 themed conversations written to memory (Pinecone vectors 23→26, Mongo L4 confirmed); task-creation conversation produced a real Notion link (https://app.notion.com/p/MEDIUM-email-the-Solstice-deck-to-Priya-37e337e75d1781708157ed31d75537c2). Fixed a `classify_intent` routing bug so recall reaches `other_workflow`, but recall answers are ungrounded/inconsistent — blocked on pre-existing Neo4j outage (see BLOCKED.md)
 - [ ] Test rows archived; any exposed keys rotated; tag `v0.1-functional`
 - [ ] Commit + tag
 

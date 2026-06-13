@@ -89,3 +89,84 @@ Day 3 (pre-existing Day 1 code, "never refactor beyond task demands"), and likel
 rare in practice (one ambiguity at a time is the common case). Flag for whoever
 picks up the task_manager regression test in the final 9-test pass — if it fails,
 apply the same phase-persistence pattern.
+
+## D5.3 memory recall via `other_workflow` is ungrounded / inconsistent (downstream of the Neo4j outage above)
+
+**Item:** D5.3 requires 3 themed conversations (separate sessions) -> a recall
+question in a brand-new session whose answer contains the SPECIFIC facts from
+those conversations, plus a Notion link.
+
+**What was tried (all via live `/api/chat`, backend on :8000):**
+1. Ran 3 themed conversations (`mobile-proof-1/2/3`):
+   - "my secret project codename is Project Solstice ... launch date August 15th"
+   - "Add a task: email the Solstice deck to Priya by Friday 5pm" -> correctly
+     created a real Notion Routine row (see link below).
+   - "I take my coffee with oat milk and no sugar ... best coding after 9pm"
+   - Verified the WRITE path: Pinecone `asta-memory-v2` vector count went
+     23 -> 26 (one per turn), Mongo L4 logged "Session ... saved successfully"
+     for all three.
+2. Recall attempt 1 (`mobile-proof-recall`): `classify_intent` labelled the
+   recall question "routine" (LLM classify, no keyword match) -> routed to
+   `task_manager`, which just listed today's tasks and never saw
+   `memory_context` at all (only `other_workflow` injects it). FIXED the
+   classify prompt in `backend/app/core/supervisor_graph.py` (clearer
+   routine/other definitions + examples) and restarted the backend — verified
+   via server.log the recall question now classifies as "other" and reaches
+   `other_workflow`.
+3. Recall attempt 2 (`mobile-proof-recall2`, generic phrasing): now reaches
+   `other_workflow`, `get_context_for_session` retrieved 3 sessions / 616
+   chars of "RELEVANT PAST CONTEXT" — but the answer ("codename Eclipse",
+   "Q3 2026", "coffee black with cinnamon", "9-11am") matches NONE of my
+   facts. The 3 retrieved sessions are older pre-Day5 memory entries, not
+   `mobile-proof-1/3`.
+4. Recall attempt 3 (`mobile-proof-recall3`, mentioning "Project Solstice" by
+   name + "remind me what I said"): "remind" hit `ROUTINE_KEYWORDS`, routed
+   back to `task_manager`, which started creating a NEW reminder titled
+   "Remind about Project Solstice details" and is paused on an interrupt
+   asking for a time. Left as an abandoned thread (no Notion row created —
+   the interrupt fires before `notion_service.create_task`).
+5. Recall attempt 4 (`mobile-proof-recall4`, "Project Solstice" by name,
+   keyword-safe phrasing): reached `other_workflow` again, but this time
+   `get_context_for_session` returned **0 sessions** (verbatim term match,
+   yet nothing retrieved) -> empty `memory_context` -> the LLM fabricated a
+   THIRD different answer ("codename Luminari", "Q4", "coffee black",
+   "9am-1pm").
+
+**Root cause:** `memory_engine.get_context_for_session` only does
+entity/cluster-filtered L2+L3 retrieval when Neo4j (L2) is reachable (see the
+Neo4j entry above — `c706f89b.databases.neo4j.io` is NXDOMAIN). With L2 down,
+`spotted` entities is always `[]`, so it always falls through to the generic
+branch: `l3_vectors.search_by_text(user_input, top_k=MEMORY_TOP_K_SESSIONS)`
+over the WHOLE Pinecone index with no relevance filter. This generic fallback
+is inconsistent (3 unrelated sessions one time, 0 sessions for a verbatim term
+match the next) and `other_workflow`'s "quick" LLM model fabricates a
+confident-sounding answer when the injected context doesn't answer the
+question, instead of saying "I don't have that on record."
+
+**What was NOT changed (out of "smallest change" scope):**
+`entity_extractor` summary quality, `l3_vectors.search_by_text` ranking/top_k,
+and `other_workflow`'s prompt grounding/refusal behavior. These are
+cross-cutting memory-pipeline changes, not a Day-5-sized fix.
+
+**What Kartik must do:**
+1. Primary fix is the SAME as the Neo4j entry above — restore the Neo4j Aura
+   instance so entity/cluster-filtered retrieval runs again. This is very
+   likely to fix recall precision (the generic full-index fallback is the
+   unreliable path).
+2. If recall is still weak after Neo4j is restored, consider separately:
+   tightening `other_workflow`'s system prompt to refuse ungrounded recall
+   ("if it's not in the context below, say you don't have it") so failures
+   are honest instead of fabricated, and check that
+   `entity_extractor.extract()`'s summaries retain named entities like
+   project codenames.
+
+**What WAS verified and DOES work (Day 5 acceptance evidence):**
+- Memory WRITE path for all 3 themed conversations (Pinecone count +3, Mongo
+  L4 saves all logged).
+- The task-creation conversation produced a real Notion Routine DB row:
+  "[MEDIUM] email the Solstice deck to Priya" —
+  https://app.notion.com/p/MEDIUM-email-the-Solstice-deck-to-Priya-37e337e75d1781708157ed31d75537c2
+  (archived as test data per D5.4).
+- The classify_intent fix is a real, verified improvement: general
+  questions/statements now correctly reach `other_workflow` (confirmed via
+  server.log `[classify_intent] ... -> other`), which they did not before.
