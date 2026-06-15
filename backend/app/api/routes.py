@@ -80,17 +80,6 @@ def circuit_status():
     return status_registry.get_all_health()
 
 
-@router.post("/admin/reset/circuit/{circuit_name}")
-def reset_circuit(circuit_name: str):
-    """Manually force a circuit breaker to close."""
-    logger.info(f"Manual override: Resetting circuit {circuit_name}")
-    circuit = status_registry.get_circuit_breaker(circuit_name)
-    if circuit:
-        circuit.force_close()
-        return {"status": "success", "message": f"Circuit {circuit_name} manually reset (force closed)"}
-    return {"status": "error", "message": f"Circuit {circuit_name} not found"}
-
-
 security = HTTPBearer()
 
 _API_BEARER_TOKEN = os.getenv("ASTA_API_BEARER_TOKEN", "").strip()
@@ -102,6 +91,17 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
     if not hmac.compare_digest(credentials.credentials, _API_BEARER_TOKEN):
         raise HTTPException(status_code=401, detail="Invalid token")
     return credentials.credentials
+
+
+@router.post("/admin/reset/circuit/{circuit_name}")
+def reset_circuit(circuit_name: str, token: str = Depends(verify_token)):
+    """Manually force a circuit breaker to close."""
+    logger.info(f"Manual override: Resetting circuit {circuit_name}")
+    circuit = status_registry.get_circuit_breaker(circuit_name)
+    if circuit:
+        circuit.force_close()
+        return {"status": "success", "message": f"Circuit {circuit_name} manually reset (force closed)"}
+    return {"status": "error", "message": f"Circuit {circuit_name} not found"}
 
 
 @router.post("/chat", response_model=ChatResponse)

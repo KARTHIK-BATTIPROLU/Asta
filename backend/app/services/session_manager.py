@@ -826,21 +826,9 @@ class SessionManager:
             except Exception as e:
                 logger.error("Embedding generation failed for session %s: %s", session_id, e, exc_info=True)
 
-        # ── Atomic 3-phase sync via MemorySaga ──────────────────────────
-        from memory.memory_saga import MemorySaga
-
-        saga = MemorySaga(
-            session_id=session_id,
-            summary=summary_text,
-            embedding=embedding or [],
-            raw_segment="",
-            source="process_session_summary",
-        )
-        saga_ok = await saga.execute()
-
-        final_status = "completed" if saga_ok else "partial_sync"
-
-        # MongoDB write must succeed independently of Pinecone/Neo4j.
+        # Entity extraction / Pinecone / Neo4j writes happen per-turn via
+        # memory_engine.save_session() (supervisor_graph's save_session node).
+        # MongoDB bookkeeping here just finalizes this SessionManager row.
         await cls._mark_completed(
             session_id,
             summary=summary_text,
@@ -852,7 +840,7 @@ class SessionManager:
             last_message_at=doc.get("last_message_at") or doc.get("updated_at") or datetime.now(timezone.utc),
             importance_score=importance_score,
             summary_hash=summary_hash,
-            status=final_status
+            status="completed"
         )
 
     @classmethod

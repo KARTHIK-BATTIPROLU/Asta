@@ -56,6 +56,49 @@
 - [x] Test rows archived (Notion row `37e337e7-5d17-8170-8157-ed31d75537c2` archived); `.env` confirmed never committed to git history (no key rotation needed); tag `v0.1-functional`
 - [x] Commit + tag — `11e521f` (superproject) + `a2e9d44` (ASTA MOBILE submodule), tag `v0.1-functional`
 
+## CONSOLIDATION PASS (no new features — harden Day 1-5)
+- [x] Stage 0/1 — Single memory pipeline: removed the legacy `MemorySaga.execute()`
+  calls from `action_executor._execute_api_tool` (per-tool "commit to memory" path)
+  and `session_manager.process_session_summary` (the old "atomic 3-phase sync").
+  `session_manager` now only finalizes its own row (`status="completed"` always —
+  the `partial_sync` re-finalize-forever loop is structurally gone).
+  `memory_engine.save_session()` (writing to `asta_db`) is now the SOLE per-turn
+  memory pipeline — no more double LLM entity extraction / double Pinecone writes.
+  Verified live: a fresh chat turn still completes L4 + L3 + L2 writes with no
+  legacy `MemorySaga` activity beyond the normal `SagaRetryWorker` startup.
+- [x] Stage 2 item 6 — Research conversation end-to-end grows Notion (+1 page),
+  Pinecone (+1 vector), Neo4j (+6 nodes) — all confirmed via before/after counts.
+  Neo4j Aura is LIVE again (re-verified working; the NXDOMAIN entry in BLOCKED.md
+  is stale/resolved).
+- [x] Stage 2 item 7 — Recall (3 themed conversations -> recall question in a new
+  session): fixed `classify_intent` misrouting "remind me what/who/..." into
+  `routine_workflow` (regex guard lets recall phrasing fall through to the LLM
+  classifier, which correctly returns "other"), and tightened `other_workflow`'s
+  `CHAT_SYSTEM` to refuse ungrounded recall instead of guessing. Verified live:
+  recall question now classifies as "other" and answers honestly ("I don't have
+  that on record") instead of fabricating a project name. A deeper, separate
+  recall-precision gap (L3/Pinecone + L4/Mongo `save_session` overwrite per turn,
+  so a multi-turn session only retains its LAST turn for retrieval) was found and
+  documented as a known limitation in BLOCKED.md — out of "smallest change" scope.
+- [x] Stage 3 item 8 — `.gitignore` += `*pre_restart*.log*` and `*.log.bak`; deleted
+  the 5 stale `server_pre_restart*.log.bak` files from the repo root.
+- [x] Stage 3 item 9 — `/api/admin/reset/circuit/{circuit_name}` gated behind the
+  same `Depends(verify_token)` bearer-auth pattern as `/chat` (was previously
+  unauthenticated). Verified: 401 no-auth, 401 bad token, 200 valid token.
+- [x] Stage 3 item 10 — dead code removed after grepping for live imports:
+  `memory_orchestrator.process_overflow` (zero call sites, plus its now-unused
+  `asyncio` / `l2_manager` / `circuit_breaker` imports) and `memory/saga_retry_worker.py`
+  (a dead duplicate — the live `SagaRetryWorker` singleton lives in `memory_saga.py`
+  and is what `main.py` actually imports). Confirmed still-live, left untouched:
+  `services/l1_cache.py l1_manager` (many real call sites incl. `ws_routes.py`).
+  `backend/app/db/memory_handler.py` is imported but unused in `ws_routes.py` —
+  left as-is per the "if still imported anywhere, leave it" rule; a tiny follow-up
+  could drop both the file and that one import line.
+- [x] Final sanity check — server restarts clean; a fresh chat turn completes the
+  full `memory_engine.save_session` pipeline (L4/L3/L2 all succeed) with only the
+  normal `SagaRetryWorker started` at boot — single-pipeline + all edits verified
+  not to have broken the live spine.
+
 ## WEEK 2+ (parked)
 - [ ] Deploy (Railway / DO droplet), domain + SSL
 - [ ] Wire Kartik's external posting automation as a tool

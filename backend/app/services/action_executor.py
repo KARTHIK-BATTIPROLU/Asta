@@ -344,10 +344,7 @@ class ActionExecutor:
         return result_obj
 
     async def _execute_api_tool(self, request: ActionRequest, start_time: float) -> ActionResult:
-        """
-        Route API tools through the ToolRegistry.
-        Commits tool result to MemorySaga for persistent memory indexing.
-        """
+        """Route API tools through the ToolRegistry."""
         try:
             from backend.app.tools.tool_registry import tool_registry
 
@@ -384,34 +381,6 @@ class ActionExecutor:
             # Audit + L1.5 cache
             await self._audit_tool_execution(result_obj)
             self._update_speculative_cache(result_obj)
-
-            # Commit to memory via MemorySaga (non-blocking)
-            if status == "success":
-                try:
-                    from memory.memory_saga import MemorySaga
-                    from backend.app.core.task_registry import TaskRegistry
-
-                    summary = f"[Tool:{request.tool_name}] {request.intent or 'tool execution'} — {status}"
-                    embedding_service = registry.get("embedding")
-                    embedding = []
-                    if embedding_service:
-                        embed_text = f"{request.intent} {result_text[:500]}"
-                        embedding = await asyncio.to_thread(embedding_service.embed, embed_text)
-
-                    saga = MemorySaga(
-                        session_id=request.session_id,
-                        summary=summary,
-                        embedding=embedding or [],
-                        raw_segment=result_text[:1000],
-                        source=f"tool:{request.tool_name}",
-                    )
-                    TaskRegistry.track(
-                        saga.execute(),
-                        name=f"tool_memory_commit:{request.tool_name}",
-                        session_id=request.session_id,
-                    )
-                except Exception as mem_err:
-                    logger.warning(f"[ActionExecutor] Memory commit failed (non-blocking): {mem_err}")
 
             return result_obj
 

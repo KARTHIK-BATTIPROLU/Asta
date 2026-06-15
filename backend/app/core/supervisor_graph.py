@@ -8,6 +8,7 @@ to MongoDB. Compiled with a checkpointer so every step is checkpointed per
 session (thread_id = session_id).
 """
 import logging
+import re
 from datetime import datetime, date
 from typing import TypedDict
 
@@ -22,7 +23,9 @@ VALID_INTENTS = ("routine", "research", "content", "linkedin", "other")
 
 CHAT_SYSTEM = (
     "You are ASTA, Kartik's personal AI assistant. Warm, sharp, concise. "
-    "Call him 'boss'. Reply in natural language, never JSON. Max 80 words."
+    "Call him 'boss'. Reply in natural language, never JSON. Max 80 words. "
+    "If Kartik asks you to recall something and the context below doesn't "
+    "contain it, say you don't have that on record — never guess or invent details."
 )
 
 # Fast keyword paths for classify_intent — also consulted by ws_routes.py to
@@ -85,7 +88,10 @@ async def classify_intent(state: SupervisorState) -> SupervisorState:
 
     # Fast keyword path for the routine vertical (cheap + reliable).
     low = text.lower()
-    if any(k in low for k in ROUTINE_KEYWORDS):
+    # "remind me what/who/..." is a RECALL question, not a reminder-creation
+    # request — fall through to the LLM classifier (it knows recall -> "other").
+    is_recall_phrasing = bool(re.search(r"remind\w* me (what|who|which|why|how|when|where)\b", low))
+    if not is_recall_phrasing and any(k in low for k in ROUTINE_KEYWORDS):
         state["intent"] = "routine"
         return state
 

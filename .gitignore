@@ -22,3 +22,5 @@ serviceAccountKey.json
 server.log
 ngrok.log
 ASTA MOBILE/gradle_compile.log
+*pre_restart*.log*
+*.log.bak
