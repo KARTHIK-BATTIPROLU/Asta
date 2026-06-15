@@ -17,6 +17,17 @@ from backend.app.config import settings
 
 logger = logging.getLogger(__name__)
 
+
+def _parse_topics(value) -> List[str]:
+    """Normalize Pinecone 'topics' metadata: writer stores a list, but legacy
+    upserts may have stored a comma-separated string."""
+    if isinstance(value, list):
+        return value
+    if value:
+        return value.split(",")
+    return []
+
+
 class L3Vectors:
     """
     L3 semantic vector search layer using Pinecone.
@@ -186,9 +197,9 @@ class L3Vectors:
                     "score": float(match.score),
                     "workflow_type": match.metadata.get("workflow_type", ""),
                     "summary_snippet": match.metadata.get("summary_snippet", ""),
-                    "topics": match.metadata.get("topics", "").split(",") if match.metadata.get("topics") else []
+                    "topics": _parse_topics(match.metadata.get("topics"))
                 })
-            
+
             logger.info(f"L3 search returned {len(formatted_results)} results")
             return formatted_results
             
@@ -235,9 +246,9 @@ class L3Vectors:
                     "score": float(match.score),
                     "workflow_type": match.metadata.get("workflow_type", ""),
                     "summary_snippet": match.metadata.get("summary_snippet", ""),
-                    "topics": match.metadata.get("topics", "").split(",") if match.metadata.get("topics") else []
+                    "topics": _parse_topics(match.metadata.get("topics"))
                 })
-            
+
             return formatted_results
             
         except Exception as e:

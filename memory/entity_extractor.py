@@ -9,8 +9,7 @@ Called at session end, BEFORE saving to Neo4j/Pinecone.
 import json
 import logging
 from typing import List, Dict
-from langchain_groq import ChatGroq
-from backend.app.config import settings
+from backend.app.core.llm_factory import acomplete
 from memory.schema import Entity, ENTITY_TYPES
 
 logger = logging.getLogger(__name__)
@@ -45,17 +44,12 @@ Return format:
 class EntityExtractor:
     """
     LLM-based entity extraction from conversation transcripts.
-    
-    Uses Groq (llama-3.3-70b-versatile) for fast, structured extraction.
+
+    Routed through llm_factory (Groq primary, Gemini fallback) so a Groq
+    rate-limit doesn't silently degrade every session summary to a
+    placeholder string.
     """
-    
-    def __init__(self):
-        self.llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
-            temperature=0.1,  # Low temp for structured extraction
-            api_key=settings.GROQ_API_KEY
-        )
-    
+
     async def extract(self, messages: List[Dict], workflow_type: str) -> Dict:
         """
         Extract entities, summary, and primary topic from conversation.
@@ -80,9 +74,8 @@ class EntityExtractor:
             # Build full prompt
             full_prompt = f"{EXTRACTION_PROMPT}\n\nWorkflow type: {workflow_type}\n\nTranscript:\n{transcript}"
             
-            # Call LLM
-            response = await self.llm.ainvoke([{"role": "user", "content": full_prompt}])
-            raw = response.content.strip()
+            # Call LLM (Groq primary, Gemini fallback via llm_factory)
+            raw = (await acomplete("", full_prompt, task="generate", temperature=0.1, max_tokens=1500)).strip()
             
             # Clean JSON fences if present
             if raw.startswith("```"):

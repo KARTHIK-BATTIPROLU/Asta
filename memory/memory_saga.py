@@ -13,11 +13,11 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from motor.motor_asyncio import AsyncIOMotorClient
 from pinecone import Pinecone
-from groq import AsyncGroq
 from summa import summarizer
 
 from memory.graph_service import graph_service
 from memory.embeddings import embedding_service
+from backend.app.core.llm_factory import acomplete
 
 logger = logging.getLogger("MemorySaga")
 
@@ -54,7 +54,6 @@ class MemorySaga:
         self.mongo_client = None
         self.db = None
         self.pinecone_index = None
-        self.groq_client = None
         self._initialized = False
     
     def _ensure_initialized(self):
@@ -79,13 +78,6 @@ class MemorySaga:
         
         pc = Pinecone(api_key=pinecone_api_key)
         self.pinecone_index = pc.Index(pinecone_index_name)
-        
-        # Groq setup (only for entity extraction)
-        groq_api_key = os.getenv("GROQ_API_KEY")
-        if not groq_api_key:
-            raise ValueError("GROQ_API_KEY environment variable required")
-        
-        self.groq_client = AsyncGroq(api_key=groq_api_key)
         
         self._initialized = True
         logger.info("MemorySaga initialized")
@@ -343,9 +335,18 @@ class MemorySaga:
         Returns structured entity data for Neo4j.
         """
         try:
-            # Get existing nodes from graph
+            # Get existing nodes from graph. None means Neo4j is unreachable —
+            # _write_neo4j will fail too, so skip the LLM call entirely rather
+            # than burning Groq/Gemini quota on output that can't be used.
             existing_nodes = await graph_service.get_existing_nodes()
-            
+            if existing_nodes is None:
+                logger.warning(f"Neo4j unreachable - skipping entity extraction for {session_data.session_id}")
+                return {
+                    "session_properties": {"topics": [], "tool_calls": [], "summary": summary},
+                    "relationships": {},
+                    "new_nodes_to_create": {}
+                }
+
             # Format conversation
             conversation = "\n\n".join([
                 f"{msg['role'].upper()}: {msg['content']}"
@@ -411,20 +412,14 @@ IMPORTANT:
 - If an entity matches an existing node, reference it by exact name
 - Never invent entities not present in the conversation"""
 
-            response = await self.groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role": "user", "content": prompt}],
-                response_format={"type": "json_object"},
-                temperature=0.1
-            )
-            
-            content = response.choices[0].message.content
+            content = await acomplete("", prompt, task="generate", temperature=0.1, max_tokens=2000)
+            content = content.strip()
             # Strip markdown if present
             if content.startswith("```"):
                 content = content.split("```")[1]
                 if content.startswith("json"):
                     content = content[4:]
-            
+
             entities = json.loads(content.strip())
             logger.info(f"Entity extraction successful for {session_data.session_id}")
             return entities

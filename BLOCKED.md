@@ -170,3 +170,139 @@ cross-cutting memory-pipeline changes, not a Day-5-sized fix.
 - The classify_intent fix is a real, verified improvement: general
   questions/statements now correctly reach `other_workflow` (confirmed via
   server.log `[classify_intent] ... -> other`), which they did not before.
+
+## UPDATE — 3 real bugs found + fixed in the memory pipeline; recall still blocked, but now by quota exhaustion (not crashes)
+
+**Follow-up investigation found the recall failure above was not (only) the
+generic-fallback-relevance issue originally diagnosed — it was compounded by
+THREE separate bugs that were silently destroying session summaries before
+they ever reached Pinecone/Mongo. All three are now fixed:**
+
+1. **`memory/l3_vectors.py` crash on list-type `topics` metadata** —
+   `search_by_text`/`search_by_entity` did `match.metadata.get("topics", "").split(",")`,
+   but `memory_saga` writes `topics` as a real `list`, not a comma-string.
+   `.split(",")` on a list raised `AttributeError`, caught by the function's
+   blanket `except`, returning `[]` — i.e. **every** semantic search silently
+   returned zero results whenever the matched vector came from `memory_saga`.
+   Fixed with a `_parse_topics()` helper that accepts both list and string.
+   Verified: post-fix, `L3 search returned 3 results` for a query that
+   previously crashed to 0.
+
+2. **`memory/entity_extractor.py` had no LLM fallback** — it built its own
+   `ChatGroq(model="llama-3.3-70b-versatile")` directly. When Groq's TPD limit
+   is hit (see below — this is now the NORMAL state, not an edge case), the
+   call raises, and the `except` branch returns
+   `{"summary": "Extraction failed - unknown error.", "entities": [], "topics": []}`.
+   **This placeholder string is what gets embedded and stored as the session's
+   summary** — permanently breaking recall for that session regardless of
+   Neo4j status. This is confirmed to be exactly what happened to
+   `mobile-proof-1/2/3`: all three have `summary="Extraction failed - unknown
+   error."` in Mongo L4, so their embeddings represent the error string, not
+   "Project Solstice" / coffee prefs / etc. **They cannot be recovered** — the
+   original conversation content was never embedded.
+   Fixed: `entity_extractor.extract()` now calls
+   `backend.app.core.llm_factory.acomplete(..., task="generate", ...)`
+   (Groq primary, Gemini fallback) instead of a raw Groq client.
+
+3. **`memory/memory_saga.py` had the same pattern** — its own
+   `self.groq_client = AsyncGroq(...)` for `_extract_entities` (topics +
+   Neo4j relationships). Its failure fallback was milder (preserves the real
+   TextRank summary, just sets `topics=["general"]`), but it was still a
+   silent Groq-only path with no fallback. Fixed the same way: routed through
+   `llm_factory.acomplete(..., task="generate", max_tokens=2000)`, dropping
+   the Groq-specific `response_format={"type": "json_object"}` (the existing
+   prompt already demands JSON-only and the code already strips ``` fences).
+
+4. **Bonus bug found while testing #2/#3**: `llm_factory._try_gemini` hardcoded
+   `gemini-1.5-flash`, which now 404s ("model not found") for this API key —
+   so the "Gemini fallback" was **never actually working**, for ANY caller,
+   this whole project. Tried `gemini-2.0-flash` next — that model has a hard
+   `limit: 0` on this key's free tier. `gemini-2.5-flash` is the only model
+   that actually responds (confirmed via direct test). Fixed
+   `llm_factory.py` to use `gemini-2.5-flash`.
+
+**Verified working end-to-end**: after restarting with all 4 fixes, the
+startup session-finalization batch (`day4-reminder-test-*`) logged
+`MemorySaga - INFO - Entity extraction successful for day4-reminder-test-...`
+**twice** — Groq 429'd, Gemini 2.5-flash fallback succeeded, real
+topics/relationships were extracted. This is the first time this path has
+worked in the entire project (point 4 means Gemini fallback was dead before).
+
+**Why a fresh "Project Aurora" recall demo could NOT be completed right now**:
+immediately after the above success, I ran two new themed test turns
+(`memory-fix-verify-1`, `memory-fix-verify-2` — "secret project codename is
+Project Aurora, launch Oct 1st, tea with honey no milk") to replace the
+unsalvageable `mobile-proof-*` sessions. Both hit:
+```
+Groq: 429 TPD limit 100000, Used ~99768-99949  (org_01k1be0wdbe0c86tpaqq4thya1, llama-3.3-70b-versatile)
+Gemini: 429 Quota exceeded for generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash
+```
+i.e. **both providers' daily quotas for the `generate` task are now
+exhausted simultaneously** — Groq's has been pinned at ~99.6-100% of its
+100k TPD for this entire project session (this is a chronic, project-wide
+ceiling, not specific to memory), and Gemini's 20/day free-tier quota (a very
+small allowance) got used up by the finalization-batch retries + my fixes'
+own fallback calls. So `memory-fix-verify-1/2` ALSO ended up with placeholder
+summaries (`"Extraction failed - JSON parse error."` — a different, but
+equally unsalvageable, placeholder) — joining `mobile-proof-1/2/3` as test
+sessions that need to be superseded once quota is available.
+
+**What Kartik must do (new, in addition to Neo4j + content_style_prefs
+below):**
+1. The CODE is now correct — Groq→Gemini fallback works end-to-end (proven).
+   Nothing more to fix here without changing model/tier policy.
+2. Once either quota has headroom, re-run the "Project Aurora" style themed
+   conversation + a recall question in a new session to get the final D5.4
+   acceptance evidence (real summary in Mongo, recall answer mentions
+   "Project Aurora"/"Oct 1st"/"tea with honey no milk"). The code path is
+   ready; it just needs one clean LLM call to land.
+
+## ROOT CAUSE FOUND + FIXED: the chronic Groq TPD exhaustion was a self-inflicted infinite retry loop
+
+While investigating why Groq's `llama-3.3-70b-versatile` TPD sits at ~99.6-100%
+of its 100k/day limit *constantly* (not just during heavy use — it was pinned
+there even right after a fresh restart with zero user activity), found:
+
+- `session_manager`'s background batch processor runs every
+  `BATCH_INTERVAL_SECONDS=5`, and `_fetch_finalizing_batch` re-selects ANY
+  session with `status in {finalizing, partial_sync, pending_vector}` whose
+  `updated_at` is more than `RESUME_GRACE_SECONDS=45` old.
+- Any session where `MemorySaga.execute()` returns `False` gets
+  `status="partial_sync"`. Since Neo4j (`c706f89b...`) is permanently
+  NXDOMAIN, `_write_neo4j` ALWAYS raises, so `saga_ok` is ALWAYS `False` for
+  every session — they NEVER reach `status="completed"`.
+- Net effect: the same handful of `day3-`/`day4-*-test-*` sessions were being
+  re-finalized roughly every 45 seconds, FOREVER, since the Neo4j outage
+  began. Each re-finalization called `MemorySaga._extract_entities()`, which
+  called `graph_service.get_existing_nodes()` (fails, silently returned `{}`
+  before this fix) and then **still made a full Groq `llama-3.3-70b-versatile`
+  completion call anyway** — whose output would be discarded seconds later
+  when `_write_neo4j` raised regardless.
+- That's a wasted ~500-2500 token `generate` call roughly every 45 seconds,
+  24/7, since Neo4j went down — easily enough to permanently saturate a 100k
+  TPD budget and explains why EVERY `task="generate"` call project-wide
+  (chat replies, research, content) has been fighting for scraps of the same
+  pool this whole session.
+
+**Fixed** (`memory/graph_service.py` + `memory/memory_saga.py`):
+`get_existing_nodes()` now returns `None` on a Neo4j connection failure
+(previously returned `{}`, indistinguishable from "connected, empty graph").
+`_extract_entities()` checks for `None` and skips the LLM call entirely,
+returning the existing graceful fallback (`topics=[]`, real `summary`
+preserved) — Mongo/Pinecone writes still happen normally, only the
+Neo4j-only entity/relationship extraction is skipped. Verified post-restart:
+log now shows `MemorySaga - WARNING - Neo4j unreachable - skipping entity
+extraction for day4-...` with **zero** Groq/Gemini calls in that batch
+(previously: `httpx POST .../groq.com 429` + Gemini fallback every cycle).
+
+**Self-healing**: this fix doesn't require Kartik to do anything — it just
+stops adding new waste. Groq's 100k TPD is a rolling window, so it will
+gradually recover now that nothing is burning ~500-2500 tokens every 45s for
+no reason. Once Neo4j IS restored (see entry above), `get_existing_nodes()`
+naturally starts returning real data again and entity extraction resumes
+automatically — no further code change needed.
+
+3. Gemini's `gemini-2.5-flash` free tier is only 20 requests/DAY — thin as a
+   fallback, but with the drain above fixed, Groq should rarely need it.
+   Optional: enable billing on the Gemini key for headroom, but likely
+   unnecessary now.

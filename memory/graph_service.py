@@ -209,10 +209,13 @@ class GraphService:
             logger.error(f"Failed to create dynamic node: {e}")
             return False
     
-    async def get_existing_nodes(self) -> Dict[str, List[str]]:
+    async def get_existing_nodes(self) -> Optional[Dict[str, List[str]]]:
         """
         Get all existing nodes for entity extraction context.
         Uses persistent driver - NO reconnection overhead.
+
+        Returns None (not {}) on connection failure, so callers can
+        distinguish "Neo4j unreachable" from "connected but empty graph".
         """
         try:
             query = """
@@ -220,25 +223,25 @@ class GraphService:
             WHERE n:Project OR n:Skill OR n:Tool OR n:User OR n:Category OR n:Commitment
             RETURN labels(n)[0] as label, n.name as name
             """
-            
+
             async with self.driver.session() as session:
                 result = await session.run(query)
                 records = await result.data()
-            
+
             nodes_by_type = {}
             for record in records:
                 label = record["label"]
                 name = record["name"]
-                
+
                 if label not in nodes_by_type:
                     nodes_by_type[label] = []
                 nodes_by_type[label].append(name)
-            
+
             return nodes_by_type
-            
+
         except Exception as e:
             logger.error(f"Failed to get existing nodes: {e}")
-            return {}
+            return None
     
     async def search_graph_context(
         self,
