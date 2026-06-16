@@ -11,6 +11,8 @@ node_modules/
 .env
 .env.*
 serviceAccountKey.json
+service-account.json
+backend/secrets/
 *.pem
 *.key
 
