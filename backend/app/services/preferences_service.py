@@ -51,28 +51,33 @@ class PreferencesService:
     async def update_from_voice(self, pref_type: str, instruction: str) -> str:
         """Parse a natural language update instruction and apply it."""
         try:
-            from backend.app.core.llm_factory import llm_router
-            
+            from backend.app.core.llm_factory import acomplete
+
             current = await self.get(pref_type)
-            result = await llm_router.invoke_with_system(
-                "intent_classification",
-                f"""Current {pref_type} preferences: {json.dumps(current)}
-                
-                The user wants to update preferences with this instruction: "{instruction}"
-                
-                Return ONLY a JSON object with the fields to update. 
-                Only include fields that should change. No explanation, just JSON.""",
-                instruction
+            raw = await acomplete(
+                system=(
+                    f"Current {pref_type} preferences: {json.dumps(current)}\n\n"
+                    "The user wants to update their preferences based on the instruction below.\n"
+                    "Return ONLY a valid JSON object with the fields to update. "
+                    "Include only fields that should change. No explanation, no markdown fences, just JSON."
+                ),
+                user=instruction,
+                task="quick",
+                temperature=0.0,
+                max_tokens=300,
             )
-            
-            # Parse JSON from LLM response
-            raw = result.strip().strip("```json").strip("```").strip()
+            # Strip markdown fences if the LLM wraps the JSON
+            raw = (raw or "").strip()
+            if raw.startswith("```"):
+                raw = raw.strip("`").strip()
+                if raw.lower().startswith("json"):
+                    raw = raw[4:].strip()
             updates = json.loads(raw)
             await self.update(pref_type, updates)
-            return f"Updated {pref_type} preferences: {', '.join(updates.keys())}"
+            return f"Updated {pref_type} preferences: {', '.join(str(k) for k in updates.keys())}"
         except Exception as e:
             logger.error(f"Failed to update preferences from voice: {e}")
-            return f"Couldn't parse preference update. Try being more specific, boss."
+            return "Couldn't parse preference update. Try being more specific, boss."
     
     async def _load_default(self, pref_type: str) -> dict:
         """Load default preferences from JSON file."""

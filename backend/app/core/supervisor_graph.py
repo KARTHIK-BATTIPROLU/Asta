@@ -9,6 +9,7 @@ session (thread_id = session_id).
 """
 import logging
 import re
+import time
 from datetime import datetime, date
 from typing import TypedDict
 
@@ -41,6 +42,51 @@ CONTENT_KEYWORDS = ["linkedin", "instagram", "youtube", "carousel", "reel script
                     "write a post", "write a script", "make me a post", "make a post", "create a post",
                     "draft a post", "post about", "content for", "caption for",
                     "remember this for my post", "remember this for my content"]
+
+# ── Memory routing ────────────────────────────────────────────────────────────
+# Keyword fast-path: classify "other" turns so only recall/project turns hit
+# the Neo4j+Pinecone stack.  Casual/feedback turns skip it entirely and return
+# a warm reply without the ~200-500 ms memory latency.
+
+_RECALL_KW = [
+    "what did i", "did i tell", "do you remember", "can you recall",
+    "what was ", "when did i", "what project", "what are my projects",
+    "remind me what", "remind me who", "remind me which", "what have i",
+    "my research", "my notes on", "what is my project", "what's my project",
+    "whats my project", "what is my ", "what's my ", "whats my ",
+    "last time i", "previously", "earlier you", "earlier i said",
+    "what's the status", "whats the status", "tell me about my",
+    "who is my ", "when was ", "where did i",
+]
+
+_CASUAL_KW = [
+    "how are you", "how's it going", "how is it going", "what's up", "whats up",
+    "thanks ", "thank you", "sounds good", "got it", "nice",
+    "cool ", "awesome", "lol", "haha", "hm ", "hmm",
+    "hey there", "hey asta", "hi asta", "nothing much", "all good",
+    "you're great", "you are great", "that's great", "thats great",
+]
+
+CASUAL_CHAT_SYSTEM = (
+    "You are ASTA, Kartik's personal AI assistant. Warm, cheerful, concise. "
+    "Call him 'boss'. Reply in natural language, never JSON. Max 60 words."
+)
+
+
+def should_search_memory(text: str) -> bool:
+    """True if this turn needs long-term memory context.
+
+    Keyword fast-path: recall signals → True; short/casual signals → False;
+    anything ambiguous → True (safe default, never miss context on real questions).
+    """
+    low = (text or "").lower()
+    if any(k in low for k in _RECALL_KW):
+        return True
+    if len(low.split()) <= 3:
+        return False
+    if any(k in low for k in _CASUAL_KW):
+        return False
+    return True
 
 
 # ── STATE ────────────────────────────────────────────────────────────────────
@@ -88,10 +134,19 @@ async def classify_intent(state: SupervisorState) -> SupervisorState:
 
     # Fast keyword path for the routine vertical (cheap + reliable).
     low = text.lower()
-    # "remind me what/who/..." is a RECALL question, not a reminder-creation
-    # request — fall through to the LLM classifier (it knows recall -> "other").
-    is_recall_phrasing = bool(re.search(r"remind\w* me (what|who|which|why|how|when|where)\b", low))
-    if not is_recall_phrasing and any(k in low for k in ROUTINE_KEYWORDS):
+    # Recall questions about the past ("what did I research about X", "remind me
+    # what ...", "what was my project ...") are ALWAYS "other" (→ other_workflow
+    # with memory fetch).  Must be checked BEFORE routine/research fast-paths so
+    # a phrase like "what did I research about X" doesn't misfire as research.
+    is_recall_phrasing = bool(
+        re.search(r"remind\w* me (what|who|which|why|how|when|where)\b", low)
+        or re.search(r"\bwhat did i (research|learn|find|say|tell|do|write|build)\b", low)
+        or re.search(r"\b(did i tell|when did i|what was i|what have i|what is my project)\b", low)
+    )
+    if is_recall_phrasing:
+        state["intent"] = "other"
+        return state
+    if any(k in low for k in ROUTINE_KEYWORDS):
         state["intent"] = "routine"
         return state
 
@@ -114,6 +169,7 @@ async def classify_intent(state: SupervisorState) -> SupervisorState:
                 "preferences, opinions, or asking the assistant to recall something it was told before.\n"
                 "Examples: 'what is my project codename?' -> other. "
                 "'remember that I like oat milk' -> other. "
+                "'what did I research about X?' -> other (recall question, not new research). "
                 "'add a task to call mom' -> routine. "
                 "'what's on my list today' -> routine.\n"
                 "Reply with ONLY the label."
@@ -282,15 +338,46 @@ async def content_workflow(state: SupervisorState) -> SupervisorState:
 
 
 async def other_workflow(state: SupervisorState) -> SupervisorState:
-    """Natural-language chat fallback."""
+    """Natural-language chat fallback with dynamic memory routing.
+
+    Casual/feedback turns skip Neo4j+Pinecone entirely and return instantly.
+    Recall/project turns fetch long-term memory, then reply with grounded context.
+    Decision is keyword-first (zero LLM cost) — see should_search_memory().
+    """
     text = state.get("user_input", "")
+    t0 = time.perf_counter()
     try:
-        # Inject recalled long-term memory (from memory_engine) into the prompt.
         system = CHAT_SYSTEM
-        mem = (state.get("memory_context") or "").strip()
-        if mem:
-            system = f"{CHAT_SYSTEM}\n\n{mem}"
+        # memory_context is empty now (no pre-fetch in run_supervisor_graph).
+        # Decide here whether this turn needs the memory stack.
+        if should_search_memory(text):
+            try:
+                from memory import memory_engine
+                ctx = await memory_engine.get_context_for_session(
+                    session_id=state.get("session_id") or "default",
+                    user_input=text,
+                    workflow_type="general",
+                )
+                mem = (memory_engine.format_context_for_prompt(ctx) or "").strip()
+                dt = time.perf_counter() - t0
+                if mem:
+                    system = f"{CHAT_SYSTEM}\n\n{mem}"
+                    logger.info(
+                        f"[other_workflow] RECALL path — memory fetch {dt:.3f}s, "
+                        f"{len(mem)} chars injected"
+                    )
+                else:
+                    logger.info(f"[other_workflow] RECALL path — memory fetch {dt:.3f}s, empty context")
+            except Exception as mem_err:
+                logger.warning(f"[other_workflow] memory fetch skipped: {mem_err}")
+        else:
+            system = CASUAL_CHAT_SYSTEM
+            dt = time.perf_counter() - t0
+            logger.info(f"[other_workflow] CASUAL path — no memory search ({dt:.3f}s so far)")
+
         state["response"] = await acomplete(system, text, task="quick", max_tokens=300)
+        total = time.perf_counter() - t0
+        logger.info(f"[other_workflow] total {total:.3f}s for '{text[:40]}'")
     except Exception as e:
         logger.error(f"[other_workflow] {e}")
         state["response"] = "Sorry boss, I couldn't process that right now."
@@ -424,27 +511,16 @@ async def run_supervisor_graph(session_id: str, user_input: str, messages: list 
     except Exception as e:
         logger.debug(f"[run_supervisor_graph] state check skipped: {e}")
 
+    t_start = time.perf_counter()
     try:
         if resuming:
             logger.info(f"[run_supervisor_graph] resuming thread {session_id} with reply")
             final = await graph.ainvoke(Command(resume=user_input), config=config)
         else:
-            # Retrieve long-term memory for this turn (Neo4j cluster → Pinecone
-            # vector → Mongo), formatted for prompt injection. Best-effort.
-            memory_context = ""
-            try:
-                from memory import memory_engine
-                ctx = await memory_engine.get_context_for_session(
-                    session_id=session_id or "default",
-                    user_input=user_input,
-                    workflow_type="general",
-                )
-                memory_context = memory_engine.format_context_for_prompt(ctx)
-                if memory_context:
-                    logger.info(f"[run_supervisor_graph] injected {len(memory_context)} chars of memory context")
-            except Exception as mem_err:
-                logger.warning(f"[run_supervisor_graph] memory fetch skipped: {mem_err}")
-
+            # memory_context intentionally left empty here.  Dynamic routing in
+            # other_workflow decides per-turn whether to fetch (casual → skip,
+            # recall → fetch).  This removes ~200-500 ms of blocking Neo4j/
+            # Pinecone latency from every casual turn.
             initial: SupervisorState = {
                 "user_input": user_input,
                 "session_id": session_id,
@@ -452,10 +528,11 @@ async def run_supervisor_graph(session_id: str, user_input: str, messages: list 
                 "intent": "",
                 "task_data": {},
                 "response": "",
-                "memory_context": memory_context,
+                "memory_context": "",
                 "start_time": datetime.utcnow().isoformat(),
             }
             final = await graph.ainvoke(initial, config=config)
+        logger.info(f"[run_supervisor_graph] turn done in {time.perf_counter() - t_start:.3f}s")
 
         # Did the graph pause to ask a clarifying question?
         question = _pending_interrupt_question(final)
