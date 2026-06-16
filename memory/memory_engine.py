@@ -10,6 +10,7 @@ import asyncio
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional
+from uuid import uuid4
 from memory.l1_cache import l1_cache
 from memory.l2_graph import l2_graph
 from memory.l3_vectors import l3_vectors
@@ -130,9 +131,10 @@ class MemoryEngine:
                     if entity_ctx:
                         # Use cached context
                         for s in entity_ctx.get("related_sessions", []):
-                            if s.get("session_id") not in seen_ids:
+                            key = s.get("turn_id") or s.get("session_id")
+                            if key not in seen_ids:
                                 all_sessions.append(s)
-                                seen_ids.add(s.get("session_id"))
+                                seen_ids.add(key)
                     else:
                         # Full retrieval pipeline with per-layer fallback
                         cluster_ids = []
@@ -160,9 +162,10 @@ class MemoryEngine:
                                         )
                                         
                                         for s in full:
-                                            if s.get("session_id") not in seen_ids:
+                                            key = s.get("turn_id") or s.get("session_id")
+                                            if key not in seen_ids:
                                                 all_sessions.append(s)
-                                                seen_ids.add(s.get("session_id"))
+                                                seen_ids.add(key)
                                     except Exception as l4_err:
                                         logger.warning(f"L4 fetch failed for {entity_name}: {l4_err}")
                             except Exception as l3_err:
@@ -249,6 +252,9 @@ class MemoryEngine:
             primary_topic = extraction["primary_topic"]
             
             # Step 2: Build SessionMetadata
+            # turn_id distinguishes this turn's L3/L4 record from other turns
+            # in the same session, so per-turn writes accumulate instead of
+            # overwriting each other.
             metadata = SessionMetadata(
                 session_id=session_id,
                 workflow_type=workflow_type,
@@ -257,7 +263,8 @@ class MemoryEngine:
                 summary=summary,
                 entities=entities,
                 topics=[e.name for e in entities if e.entity_type == "TOPIC"] + ([primary_topic] if primary_topic else []),
-                notion_page_id=notion_page_id
+                notion_page_id=notion_page_id,
+                turn_id=str(uuid4())
             )
             
             # Step 3: L4 MongoDB — save full session
@@ -293,14 +300,21 @@ class MemoryEngine:
             return False
     
     async def _save_to_l3(self, session_id: str, summary: str, metadata: SessionMetadata, entities: List[Entity]) -> bool:
-        """Save to Pinecone with error isolation."""
+        """Save to Pinecone with error isolation.
+
+        Vector ID is per-turn (session_id:turn_id) so each turn's summary
+        gets its own embedding instead of overwriting prior turns' vectors.
+        session_id is kept in metadata for retrieval grouping.
+        """
         pinecone_meta = {
+            "session_id": session_id,
             "workflow_type": metadata.workflow_type,
             "end_time": metadata.end_time,
             "topics": ",".join(metadata.topics),
             "entity_names": ",".join([e.name for e in entities])
         }
-        return await l3_vectors.upsert_session(session_id, summary, pinecone_meta)
+        vector_id = f"{session_id}:{metadata.turn_id}" if metadata.turn_id else session_id
+        return await l3_vectors.upsert_session(vector_id, summary, pinecone_meta)
     
     async def _save_to_l2(self, session_id: str, entities: List[Entity], workflow_type: str, 
                          summary: str, metadata: SessionMetadata) -> bool:

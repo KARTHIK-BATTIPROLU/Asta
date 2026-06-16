@@ -106,50 +106,54 @@ class L3Vectors:
             logger.error(f"Failed to embed text: {e}")
             return []
     
-    async def upsert_session(self, session_id: str, summary: str, metadata: Dict) -> bool:
+    async def upsert_session(self, vector_id: str, summary: str, metadata: Dict) -> bool:
         """
         Embed session summary and upsert to Pinecone.
-        
+
         Args:
-            session_id: Unique session identifier (used as vector ID)
+            vector_id: Unique Pinecone vector ID for this record (e.g.
+                "<session_id>:<turn_id>" for per-turn records, or a plain
+                session_id for one-off records like permanent memories)
             summary: Session summary text to embed
-            metadata: Dict with session metadata for filtering
-            
+            metadata: Dict with session metadata for filtering. If it
+                contains "session_id", that value is stored in the vector's
+                metadata for retrieval grouping; otherwise vector_id is used.
+
         Returns:
             True on success, False on failure
         """
         try:
             # Get embedding for summary
             embedding = await self.embed_text(summary)
-            
+
             if not embedding:
-                logger.error(f"Empty embedding for session {session_id}")
+                logger.error(f"Empty embedding for vector {vector_id}")
                 return False
-            
+
             # Prepare metadata for Pinecone (must be strings/numbers)
             pinecone_metadata = {
-                "session_id": session_id,
+                "session_id": metadata.get("session_id", vector_id),
                 "workflow_type": metadata.get("workflow_type", ""),
                 "end_time": metadata.get("end_time", ""),
                 "topics": metadata.get("topics", ""),  # comma-separated string
                 "entity_names": metadata.get("entity_names", ""),  # comma-separated string
                 "summary_snippet": summary[:200]  # First 200 chars
             }
-            
+
             # Upsert vector
             self.index.upsert(
                 vectors=[{
-                    "id": session_id,
+                    "id": vector_id,
                     "values": embedding,
                     "metadata": pinecone_metadata
                 }]
             )
-            
-            logger.info(f"Session {session_id} vector upserted to L3")
+
+            logger.info(f"Vector {vector_id} upserted to L3")
             return True
-            
+
         except Exception as e:
-            logger.error(f"Failed to upsert session {session_id}: {e}")
+            logger.error(f"Failed to upsert vector {vector_id}: {e}")
             return False
     
     async def search_by_text(self, query_text: str, top_k: int = 10, 

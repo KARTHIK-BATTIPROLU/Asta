@@ -55,20 +55,26 @@ class L4Store:
         """Create required indexes on startup."""
         try:
             # Sessions collection indexes
+            # turn_id is unique per write (one record per conversation turn);
+            # session_id is NOT unique — multiple turns share a session_id so
+            # they can all be retrieved together via get_sessions_by_ids.
             sessions_indexes = [
-                IndexModel([("session_id", ASCENDING)], unique=True, name="session_id_unique_v2"),
+                IndexModel([("turn_id", ASCENDING)], unique=True, sparse=True, name="turn_id_unique_v1"),
+                IndexModel([("session_id", ASCENDING)], name="session_id_idx_v1"),
                 IndexModel([("workflow_type", ASCENDING)]),
                 IndexModel([("entities.name", ASCENDING)]),
                 IndexModel([("end_time", ASCENDING)]),
                 IndexModel([("raw_transcript_expires_at", ASCENDING)], expireAfterSeconds=0)  # TTL index
             ]
-            
-            # Drop existing conflicting index if it exists
-            try:
-                await self.db.sessions.drop_index("session_id_unique")
-            except Exception:
-                pass  # Index might not exist
-                
+
+            # Drop legacy unique indexes that prevent multiple turn-documents
+            # from sharing the same session_id
+            for legacy_index in ("session_id_unique", "session_id_unique_v2"):
+                try:
+                    await self.db.sessions.drop_index(legacy_index)
+                except Exception:
+                    pass  # Index might not exist
+
             await self.db.sessions.create_indexes(sessions_indexes)
             
             # Permanent memory indexes
@@ -122,6 +128,7 @@ class L4Store:
             
             document = {
                 "session_id": metadata.session_id,
+                "turn_id": metadata.turn_id,
                 "workflow_type": metadata.workflow_type,
                 "start_time": metadata.start_time,
                 "end_time": metadata.end_time,
@@ -133,15 +140,15 @@ class L4Store:
                 "raw_transcript": raw_transcript,
                 "raw_transcript_expires_at": datetime.utcnow() + timedelta(days=settings.SESSION_TRANSCRIPT_TTL_DAYS)
             }
-            
-            # Upsert on session_id
-            await self.db.sessions.replace_one(
-                {"session_id": metadata.session_id},
-                document,
-                upsert=True
-            )
-            
-            logger.info(f"Session {metadata.session_id} saved to L4")
+
+            # Each turn gets its own document (keyed by turn_id) so earlier
+            # turns aren't overwritten by later ones in the same session.
+            # Callers that don't set turn_id fall back to the old
+            # one-document-per-session behavior.
+            key = {"turn_id": metadata.turn_id} if metadata.turn_id else {"session_id": metadata.session_id}
+            await self.db.sessions.replace_one(key, document, upsert=True)
+
+            logger.info(f"Session {metadata.session_id} (turn {metadata.turn_id}) saved to L4")
             return True
             
         except Exception as e:
@@ -152,12 +159,16 @@ class L4Store:
         """
         Fetch sessions by session_id list.
         Returns only metadata, excludes raw_transcript for privacy.
+
+        Multiple turn-documents can share a session_id, so this may return
+        more than one document per requested session_id.
         """
         try:
             cursor = self.db.sessions.find(
                 {"session_id": {"$in": session_ids}},
                 {
                     "session_id": 1,
+                    "turn_id": 1,
                     "workflow_type": 1,
                     "summary": 1,
                     "entities": 1,

@@ -21,7 +21,7 @@ class Entity:
     description: str = ""
     confidence: float = 1.0   # 0.0–1.0, from LLM extraction
 
-@dataclass  
+@dataclass
 class SessionMetadata:
     session_id: str
     workflow_type: str
@@ -32,6 +32,8 @@ class SessionMetadata:
     topics: list              # simple list of topic strings
     embedding_id: str = ""    # Pinecone vector ID
     notion_page_id: str = ""
+    turn_id: str = ""         # unique per-turn id; distinguishes L3/L4 records
+                               # that share the same session_id
 
 # ─── Cache Payloads ──────────────────────────────────────────────────────────
 
