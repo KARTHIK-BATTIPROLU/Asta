@@ -1,29 +1,95 @@
 {
   "type": "content_style",
-  "_placeholder": true,
-  "_note": "PLACEHOLDER - replace with Kartik's real preferences (see BLOCKED.md). This is the master style overlay applied across all platforms before platform-specific prefs (linkedin_prefs.json / youtube_prefs.json / instagram_prefs.json).",
-  "tone": "direct, first-principles, no fluff. Conversational but sharp. Sounds like Karthik, not a brand.",
-  "structure": "hook -> context/insight -> takeaway or CTA. Short paragraphs, no walls of text.",
-  "hooks": ["bold claim", "surprising stat", "personal story opener", "contrarian take", "sharp question"],
+  "_placeholder": false,
+  "_note": "Karthik's real LinkedIn content preferences. Student builder documenting learning journey in public.",
+  "identity": "student builder thinking out loud while growing in public — NOT a guru, expert, or motivational speaker",
+  "tone": "human, conversational, reflective, natural, slightly emotional, grounded, simple, experience-driven. Authentic over perfect. Never corporate, robotic, overpolished, preachy, or AI-sounding.",
+  "structure": "1. Hook (simple + relatable, NOT clickbait) → 2. Experience/Context (what happened, where, what was learned — real and direct) → 3. Reflection/Realization (thoughtful not dramatic — 'that's when it hits you', 'you realize') → 4. Takeaway (simple, no preaching, tone of 'I am learning this too' NOT 'you should do this') → 5. Ending (calm and grounded)",
+  "hooks": [
+    "Recently attended…",
+    "Why do we suddenly learn so fast under pressure?",
+    "Let's talk about…",
+    "Here's the thing…",
+    "simple relatable opener",
+    "reflective question",
+    "personal story opener"
+  ],
+  "signature_phrases": [
+    "Here's the thing…",
+    "Think about it.",
+    "That's when it hits you.",
+    "And honestly…",
+    "Hits different.",
+    "One step at a time.",
+    "And that's okay.",
+    "More to learn.",
+    "Keep building.",
+    "More to explore."
+  ],
+  "endings": [
+    "More to learn.",
+    "One step at a time.",
+    "Keep building.",
+    "And that's okay.",
+    "More to explore."
+  ],
   "hashtags": {
     "use": true,
     "default_count": 5,
-    "style": "specific to topic + niche, no generic spam tags (no #motivation #success)"
+    "style": "specific to topic + niche — AI, building, student journey, tech. No generic spam tags like #motivation #success #hustle"
   },
-  "emoji": "minimal - 1 to 2 max, only if it adds clarity, never decorative",
-  "avoid": ["corporate jargon", "buzzwords", "humble bragging", "vague motivation posts", "fluff intros like 'In today's world...'"],
+  "emoji": "moderate and natural — 1 to 3 max. Preferred: rocket, lightning, fire, bulb, brain, sparkles, hands, laptop. Purpose: emphasize emotion, separate thoughts, improve readability. Never excessive, random, or childish.",
+  "formatting": "frequent line breaks, short paragraphs, breathing space, visually easy to scan. Sentences resemble spoken English — short to medium length with natural pauses. No giant text blocks or dense paragraphs.",
+  "length": "concise, punchy, readable, emotionally clear. No overexplaining or unnecessary repetition.",
+  "themes": [
+    "AI and Agentic AI",
+    "Automation and building projects",
+    "Hackathons and workshops",
+    "AWS and Cybersecurity",
+    "Learning technologies in real-world implementation",
+    "Learning under pressure",
+    "Systems over routines",
+    "Focus and flow state",
+    "Consistency and discipline",
+    "College experiences and student journey",
+    "Networking and communities",
+    "Growth through experimentation"
+  ],
+  "philosophy": "Growth over Perfection. Process over Results. Curiosity over Fear. Learning by doing. Real experiences over theory.",
+  "critical_rule": "Preserve the user's original meaning, thought process, emotional tone, and raw energy. Only improve readability and structure. Do NOT rewrite the idea, inject unrelated opinions, change core context, add fake motivation, or make it sound like an AI wrote it. Final output must feel like the user wrote this.",
+  "avoid": [
+    "corporate jargon",
+    "motivational speaker tone",
+    "guru or expert language",
+    "clickbait hooks",
+    "overpolished writing",
+    "preaching or acting superior",
+    "AI-sounding phrases",
+    "fake motivation",
+    "overexplaining",
+    "dense paragraphs",
+    "giant text blocks",
+    "robotic sentence structure",
+    "overhyped claims",
+    "vague inspiration posts",
+    "fluff intros like In today's world",
+    "buzzwords like leverage or synergy",
+    "humble bragging"
+  ],
   "per_platform": {
     "linkedin": {
-      "tone": "thought-leader, professional but human",
-      "structure": "strong hook -> 3-4 short paragraphs -> question or CTA"
+      "tone": "student builder thinking out loud — human, honest, slightly vulnerable, grounded",
+      "structure": "Hook → Experience/Context → Reflection → Takeaway → Calm ending",
+      "hook_styles": ["relatable opener", "reflective question", "personal story", "Here's the thing…"],
+      "avoid": ["corporate tone", "guru language", "excessive self-promotion"]
     },
     "youtube": {
-      "tone": "high energy, educational, like a smart friend explaining",
-      "structure": "hook_30s -> story_context_90s -> deep_content -> key_takeaways -> CTA"
+      "tone": "curious, educational, like a friend sharing what they just learned",
+      "structure": "hook_30s → story_context_90s → deep_content → key_takeaways → CTA"
     },
     "instagram": {
-      "tone": "punchy, visual-first",
-      "structure": "hook line -> value -> CTA; carousel slides for depth"
+      "tone": "punchy, visual-first, raw and real",
+      "structure": "hook line → value → CTA; carousel slides for depth"
     }
   }
 }

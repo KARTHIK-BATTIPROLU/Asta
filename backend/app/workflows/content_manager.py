@@ -194,17 +194,53 @@ def _platform_json_spec(platform: str, pf: dict) -> str:
 async def _generate_draft(platform: str, topic: str, context_text: str, prefs: dict,
                            feedback: str = None, previous: dict = None) -> dict:
     style, pf = prefs["style"], prefs["platform"]
+    # Build optional extra-context lines only when the fields exist (real prefs have them,
+    # old placeholder did not — guard with .get() so neither crashes).
+    _identity    = style.get("identity", "")
+    _formatting  = style.get("formatting", "")
+    _critical    = style.get("critical_rule", "")
+    _sig_phrases = style.get("signature_phrases", [])
+    _philosophy  = style.get("philosophy", "")
+    _extra = ""
+    if _identity:
+        _extra += f"Identity / voice: {_identity}\n"
+    if _philosophy:
+        _extra += f"Content philosophy: {_philosophy}\n"
+    if _formatting:
+        _extra += f"Formatting: {_formatting}\n"
+    if _sig_phrases:
+        _extra += f"Signature phrases (use organically, not forced): {', '.join(_sig_phrases)}\n"
+    if _critical:
+        _extra += f"CRITICAL RULE: {_critical}\n"
     system = (
         f"You are ghostwriting {platform} content in Karthik's voice (never address him as "
         f"'boss' inside the content itself, that's only how he talks to ASTA).\n"
+        f"This is a PERSONAL post about Karthik's own experience. Write in first person. "
+        f"Do NOT mention any external organizations, third-party events, "
+        f"statistics, or examples that Karthik did not personally describe. "
+        f"If the context is thin, write a short authentic reflection rather than padding with outside facts.\n"
         f"Tone: {pf.get('tone') or style.get('tone', '')}\n"
         f"Structure: {style.get('structure', '')}\n"
         f"Hook styles: {', '.join((pf.get('hook_styles') or []) + (style.get('hooks') or []))}\n"
         f"Emoji policy: {pf.get('emoji_usage') or style.get('emoji', '')}\n"
-        f"Avoid: {', '.join((style.get('avoid') or []) + (pf.get('avoid') or []))}\n\n"
-        f"{_platform_json_spec(platform, pf)}"
+        f"Avoid: {', '.join((style.get('avoid') or []) + (pf.get('avoid') or []))}\n"
+        + (_extra + "\n" if _extra else "\n")
+        + _platform_json_spec(platform, pf)
     )
-    user = f"Topic: {topic}\n\nContext:\n{context_text[:2500] if context_text else '(none provided — use general knowledge)'}"
+    _ctx = context_text[:2500] if context_text else ""
+    if _ctx:
+        user = (
+            f"Write a {platform} post about this specific personal experience of Karthik's "
+            f"(do NOT reference any events, organizations, statistics, or examples outside what he described — "
+            f"if context is thin, write a SHORT authentic reflection, not a padded generic post):\n\n"
+            f"\"{_ctx}\""
+        )
+    else:
+        user = (
+            f"Topic: {topic}\n\n"
+            f"Write a short, authentic personal post in Karthik's student-builder voice. "
+            f"No external examples or statistics."
+        )
     if feedback:
         user += (
             f"\n\nPrevious draft:\n{json.dumps(previous or {})[:1500]}\n\n"
@@ -286,7 +322,9 @@ async def handle_content_turn(user_input: str, research_context: dict, content_s
             "field": "content_research_or_raw",
         })
         reply = (reply or "").strip().lower()
-        if any(k in reply for k in ["research", "yes", "look", "first", "deep", "dig"]):
+        _no_research = any(k in reply for k in ["straight", "raw", "no research", "without", "skip", "just write", "don't research"])
+        _yes_research = any(k in reply for k in ["research", "yes", "look", "first", "deep", "dig"])
+        if _yes_research and not _no_research:
             synthesized = await _quick_research_context(topic)
             context_text = _context_from_research(synthesized)
             research_points = synthesized.get("research_points") or []
