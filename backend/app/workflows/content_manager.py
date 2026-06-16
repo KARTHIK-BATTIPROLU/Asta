@@ -38,8 +38,9 @@ from backend.app.services.research_service import research_service
 logger = logging.getLogger("ContentManager")
 
 _PREF_UPDATE_KW = [
-    "remember this for my post", "remember this for my content",
-    "remember my style", "update my content style",
+    "remember this for my post", "remember this for my posts",
+    "remember this for my content", "remember my style",
+    "update my content style", "remember my content style",
 ]
 
 _PLATFORM_KW = {
