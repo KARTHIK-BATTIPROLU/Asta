@@ -75,30 +75,3 @@ BOTH (ambiguous task name AND no new time given), the second interrupt may hit
 this issue on the next reply. Not fixed — pre-existing Day 1 code, rare in
 practice. If the task_manager regression test ever fails on a double-ambiguity
 case, apply the same phase-persistence pattern used in `content_workflow`.
-
-### Memory recall precision — L3/L4 store only the LAST turn of a session
-
-Found while re-verifying recall (Stage 2 item 7). `memory_engine.save_session()`
-runs per-turn. `memory/l3_vectors.py upsert_session()` writes the Pinecone vector
-with `"id": session_id` (an upsert — overwrites), and `memory/l4_store.py
-save_session()` does `replace_one({"session_id": ...}, ...)` against a unique
-index on `session_id` (also overwrites). So for any multi-turn session, only the
-MOST RECENT turn's summary/embedding survives in L3 (Pinecone) and L4 (Mongo) —
-earlier turns' facts become unreachable via vector/document retrieval, even
-though L2 Neo4j entity links accumulate additively across turns.
-
-Combined with `_save_to_l2`'s `update_current_focus(...)` also being overwritten
-on every turn (including recall-question turns themselves), this means a recall
-question about something said several turns ago in the SAME session — or in an
-OLDER session that has since had later turns — may legitimately have nothing left
-to retrieve.
-
-**Why this isn't urgent right now:** Stage 2 item 7 already fixed the dangerous
-half of this — when memory context is empty/irrelevant, `other_workflow` now
-correctly says "I don't have that on record" instead of fabricating an answer
-(verified live). So the failure mode is honest, not a hallucination.
-
-**Future fix (not this pass):** give each turn its own L3 vector ID (e.g.
-`f"{session_id}:{turn_index}"` instead of `session_id`) and make L4 append
-per-turn records (or an array field) instead of `replace_one` on the whole
-document.
