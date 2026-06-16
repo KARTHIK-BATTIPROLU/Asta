@@ -172,8 +172,49 @@ def _parse_reminder_datetime(task_date: str, scheduled_time: str):
         return None
 
 
+async def _send_fcm_push(title: str, body: str):
+    """Fire an FCM push to all registered device tokens.
+
+    Gracefully skipped when service-account.json is absent or firebase-admin is
+    not installed — callers never need to handle the failure.
+    """
+    try:
+        import os
+        sa_path = os.path.join(os.path.dirname(__file__), "..", "..", "secrets", "service-account.json")
+        if not os.path.exists(sa_path):
+            logger.info("[FCM] service-account.json not found — push skipped (place file to enable)")
+            return
+
+        import firebase_admin
+        from firebase_admin import credentials, messaging
+
+        if not firebase_admin._apps:
+            cred = credentials.Certificate(sa_path)
+            firebase_admin.initialize_app(cred)
+
+        # Fetch all stored device tokens from Mongo.
+        from backend.app.db.async_mongo import get_async_db
+        db = await get_async_db()
+        tokens = [doc["token"] async for doc in db["device_tokens"].find({}, {"token": 1})]
+
+        if not tokens:
+            logger.info("[FCM] no device tokens registered — push skipped")
+            return
+
+        # FCM multicast (up to 500 tokens per call).
+        message = messaging.MulticastMessage(
+            notification=messaging.Notification(title=title, body=body),
+            tokens=tokens,
+        )
+        resp = messaging.send_each_for_multicast(message)
+        logger.info(f"[FCM] sent to {resp.success_count}/{len(tokens)} devices")
+    except Exception as e:
+        logger.warning(f"[FCM] push failed (non-fatal): {e}")
+
+
 async def _fire_reminder(page_id: str, task_name: str, scheduled_time: str):
-    """APScheduler callback: broadcast a proactive reminder over WS and mark it reminded."""
+    """APScheduler callback: broadcast a proactive reminder over WS, persist to
+    Notion, and send an FCM push (gracefully skipped if not configured)."""
     from backend.app.api.ws_routes import broadcast_message, synthesize_proactive_audio_b64
 
     name = _clean_name(task_name)
@@ -192,10 +233,14 @@ async def _fire_reminder(page_id: str, task_name: str, scheduled_time: str):
     except Exception as e:
         logger.error(f"[task_manager] reminder broadcast failed for {page_id}: {e}")
 
+    # Persist fired status to Notion instantly (visible even with no WS client).
     try:
         await notion_service.update_task_status(page_id, "Reminded")
     except Exception as e:
         logger.error(f"[task_manager] reminder status update failed for {page_id}: {e}")
+
+    # FCM push — non-blocking, gracefully skipped when not configured.
+    await _send_fcm_push(title="ASTA Reminder", body=text)
 
 
 def _schedule_reminder(page_id: str, task_name: str, scheduled_time: str, task_date: str) -> bool:

@@ -51,3 +51,6 @@ langgraph-checkpoint-postgres
 psycopg[binary]
 psycopg-pool
 langgraph-checkpoint-mongodb
+
+# Firebase Admin SDK (FCM push notifications — gracefully skipped until service-account.json is present)
+firebase-admin

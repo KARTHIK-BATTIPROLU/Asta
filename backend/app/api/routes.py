@@ -114,12 +114,13 @@ async def handle_chat(req: ChatRequest, token: str = Depends(verify_token)):
         # Use the supervisor LangGraph for orchestration
         from backend.app.core.supervisor_graph import run_supervisor_graph
 
-        # Fetch conversation history (best-effort; memory context is injected by the graph)
+        # Fetch L1 session history only (skip RAG — the supervisor graph's
+        # other_workflow decides per-turn whether to search long-term memory).
         history = []
         try:
-            history, _ = await fetch_memory_context(req.message, session_id)
+            history, _ = await fetch_memory_context(req.message, session_id, skip_rag=True)
         except Exception as mem_err:
-            logger.error(f"[Chat] Error fetching memory context: {mem_err}")
+            logger.error(f"[Chat] Error fetching history: {mem_err}")
 
         # Run supervisor graph (classifies intent + routes + checkpoints)
         result = await run_supervisor_graph(
@@ -155,6 +156,34 @@ async def handle_chat(req: ChatRequest, token: str = Depends(verify_token)):
     logger.debug(f"POST /api/chat full reply text: {full_reply}")
 
     return ChatResponse(session_id=session_id, reply=full_reply, audio_base64=audio_base64)
+
+
+class DeviceTokenRequest(BaseModel):
+    device_id: str
+    fcm_token: str
+
+
+@router.post("/device-token")
+async def register_device_token(req: DeviceTokenRequest, token: str = Depends(verify_token)):
+    """Register or refresh an FCM device token for push notifications.
+
+    The Android app calls this on every launch after receiving a (possibly
+    rotated) token from FirebaseMessagingService.onNewToken().  Upserts by
+    device_id so a single device never accumulates stale tokens.
+    """
+    try:
+        from backend.app.db.async_mongo import get_async_db
+        db = await get_async_db()
+        await db["device_tokens"].update_one(
+            {"device_id": req.device_id},
+            {"$set": {"device_id": req.device_id, "token": req.fcm_token}},
+            upsert=True,
+        )
+        logger.info(f"[device-token] registered/refreshed token for device {req.device_id[:8]}")
+        return {"status": "ok"}
+    except Exception as e:
+        logger.error(f"[device-token] {e}")
+        raise HTTPException(status_code=500, detail="Failed to store device token")
 
 
 @router.post("/trigger/morning-brief")
