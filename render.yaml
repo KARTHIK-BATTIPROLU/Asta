@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: asta-backend
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: ASTA_API_BEARER_TOKEN
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: MONGO_URI
+        sync: false
+      - key: MONGO_DB_NAME
+        value: asta_db
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: PINECONE_INDEX_NAME
+        value: asta-memory
+      - key: PINECONE_EMBEDDING_DIM
+        value: "384"
+      - key: NEO4J_URI
+        sync: false
+      - key: NEO4J_USERNAME
+        value: neo4j
+      - key: NEO4J_PASSWORD
+        sync: false
+      - key: NOTION_API_KEY
+        sync: false
+      - key: NOTION_ROUTINE_DB
+        sync: false
+      - key: NOTION_RESEARCH_DB
+        sync: false
+      - key: NOTION_CONTENT_DB
+        sync: false
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: SERPER_API
+        sync: false
+      - key: WAKE_WORD_ENABLED
+        value: "false"
+      # No POSTGRES_URL / REDIS_URL on purpose — LangGraph checkpointer falls back
+      # to MongoDB (already set above), and the Redis L1 cache fails open if unset.

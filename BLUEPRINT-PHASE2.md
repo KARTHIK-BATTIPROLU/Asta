@@ -41,7 +41,7 @@ Make ASTA **feel like a real assistant** and **actually reach the phone**:
 | Reminders — immediate | On fire, persist status to Notion instantly (visible even with no client connected). |
 | Reminders — push | FCM (Firebase Cloud Messaging) for offline delivery. Bonus this phase. |
 | Mobile voice | Wire audio streaming on the existing Flutter+Kotlin app over the EXISTING WS. Reuse Deepgram STT/TTS. No new vendor, no new endpoint. |
-| Deployment | Pick ONE: **Railway** (managed, fast, ~$5/mo) or **DigitalOcean droplet** (self-hosted Docker Compose, ~$6/mo). NOT Render free (cron dies on spin-down). |
+| Deployment | **Render free tier**, Docker web service (`render.yaml`). Kartik runs an external pinger (every 5 min) to keep the instance warm so the APScheduler-based reminders keep running; no Postgres/Redis add-ons — checkpointer falls back to MongoDB, L1 cache fails open. Accepted tradeoff over Railway/DO for $0 cost. |
 | Firebase setup | Firebase CLI from Claude Code; `service-account.json` downloaded by Kartik; backend wires the Admin SDK send. |
 | Human-in-loop work | Done LAST, never blocking: Firebase console clicks, content style file, mobile build, server/DNS. Placeholders keep everything running until then. |
 

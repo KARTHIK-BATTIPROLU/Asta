@@ -10,10 +10,6 @@ pytz
 deepgram-sdk>=6.0.1,<7.0.0
 python-multipart
 websockets>=10.0
-# Wake Word Detection
-openwakeword
-tflite-runtime
-PyAudio
 # AI
 langchain
 langgraph
