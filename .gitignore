@@ -21,8 +21,7 @@ backend/secrets/
 
 # Generated
 /tmp/asta_images/
-server.log
-ngrok.log
-ASTA MOBILE/gradle_compile.log
+*.log
 *pre_restart*.log*
 *.log.bak
+google-services (1).json
