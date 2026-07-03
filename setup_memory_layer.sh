@@ -21,8 +21,8 @@ if [ -z "$NEO4J_PASSWORD" ]; then
     echo "❌ NEO4J_PASSWORD not set"
     exit 1
 fi
-if [ -z "$MONGODB_URI" ]; then
-    echo "❌ MONGODB_URI not set"
+if [ -z "$MONGO_URI" ]; then
+    echo "❌ MONGO_URI not set"
     exit 1
 fi
 if [ -z "$PINECONE_API_KEY" ]; then

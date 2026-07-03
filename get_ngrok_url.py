@@ -52,32 +52,37 @@ def update_android_config(ngrok_url):
     """
     Update the Android app's network configuration with the new ngrok URL
     """
-    config_file = "ASTA MOBILE/app/src/main/java/com/example/asta/network/AstaNetworkClient.kt"
-    
+    config_files = [
+        "ASTA MOBILE/app/src/main/java/com/example/asta/network/AstaNetworkClient.kt",
+        "ASTA MOBILE/app/src/main/java/com/example/asta/utils/ConfigManager.java",
+    ]
+
     try:
-        with open(config_file, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
-        # Find and replace the BASE_URL line
-        lines = content.split('\n')
-        updated_lines = []
-        
-        for line in lines:
-            if 'val BASE_URL = ' in line and 'ngrok' in line:
-                # Replace with new URL
-                indent = len(line) - len(line.lstrip())
-                updated_lines.append(' ' * indent + f'val BASE_URL = "{ngrok_url}"')
-            else:
-                updated_lines.append(line)
-        
-        updated_content = '\n'.join(updated_lines)
-        
-        with open(config_file, 'w', encoding='utf-8') as f:
-            f.write(updated_content)
-        
+        for config_file in config_files:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            lines = content.split('\n')
+            updated_lines = []
+
+            for line in lines:
+                if 'var BASE_URL = ' in line:
+                    indent = len(line) - len(line.lstrip())
+                    updated_lines.append(' ' * indent + f'var BASE_URL = "{ngrok_url}"')
+                elif 'private static final String DEFAULT_BASE_URL = ' in line:
+                    indent = len(line) - len(line.lstrip())
+                    updated_lines.append(' ' * indent + f'private static final String DEFAULT_BASE_URL = "{ngrok_url}";')
+                else:
+                    updated_lines.append(line)
+
+            updated_content = '\n'.join(updated_lines)
+
+            with open(config_file, 'w', encoding='utf-8') as f:
+                f.write(updated_content)
+
         print(f"✓ Updated Android config with URL: {ngrok_url}")
         return True
-        
+
     except Exception as e:
         print(f"ERROR updating Android config: {str(e)}", file=sys.stderr)
         return False

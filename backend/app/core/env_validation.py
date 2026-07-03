@@ -21,6 +21,7 @@ REQUIRED_VARS = [
 
 OPTIONAL_VARS = {
     "NEO4J_URI": "L3 graph memory disabled",
+    "NEO4J_USERNAME": "L3 graph memory disabled",
     "NEO4J_PASSWORD": "L3 graph memory disabled",
     "PINECONE_API_KEY": "Vector search (RAG) disabled",
     "NOTION_API_KEY": "Notion tool disabled",
