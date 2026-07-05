@@ -2,19 +2,29 @@ import httpx
 import logging
 import asyncio
 from backend.app.config import config as settings
+from typing import Optional
 
 logger = logging.getLogger("STT_Service")
 
-async def transcribe_audio(audio_bytes: bytes, retries: int = 2) -> str:
+class DeepgramSTTError(Exception):
+    pass
+
+async def transcribe_audio(audio_bytes: bytes, mimetype: str = "application/octet-stream", retries: int = 2) -> str:
     """Send raw audio to Deepgram, get back transcript text. Retries on transient errors."""
     
     if not audio_bytes or len(audio_bytes) < 100:
         logger.warning(f"[STT] Audio too small ({len(audio_bytes)} bytes), skipping")
         return ""
+        
+    if len(audio_bytes) > settings.MAX_AUDIO_BYTES:
+        raise DeepgramSTTError("Audio payload too large")
+        
+    if not settings.DEEPGRAM_API_KEY:
+        raise DeepgramSTTError("DEEPGRAM_API_KEY is missing")
     
     headers = {
         "Authorization": f"Token {settings.DEEPGRAM_API_KEY}",
-        "Content-Type": "application/octet-stream",
+        "Content-Type": mimetype,
     }
     
     params = {
@@ -22,9 +32,14 @@ async def transcribe_audio(audio_bytes: bytes, retries: int = 2) -> str:
         "language": "en-US",
         "smart_format": "true",
         "punctuate": "true",
-        "encoding": "linear16",
-        "sample_rate": "24000",
     }
+    
+    # If the transport is streaming raw PCM from Websockets, tell Deepgram
+    if mimetype == "application/octet-stream":
+        params.update({
+            "encoding": "linear16",
+            "sample_rate": "24000",
+        })
     
     last_error = None
     for attempt in range(retries):
@@ -46,7 +61,7 @@ async def transcribe_audio(audio_bytes: bytes, retries: int = 2) -> str:
                 .get("alternatives", [{}])[0]
                 .get("transcript", "")
             )
-            return transcript or ""
+            return (transcript or "").strip()
             
         except httpx.HTTPStatusError as e:
             last_error = e
@@ -64,5 +79,5 @@ async def transcribe_audio(audio_bytes: bytes, retries: int = 2) -> str:
             break
     
     logger.error(f"[STT] All {retries} attempts failed: {last_error}")
-    return ""
+    raise DeepgramSTTError(f"STT failed after {retries} attempts: {last_error}")
 

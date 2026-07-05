@@ -14,8 +14,8 @@ class PreferencesService:
     
     async def _get_collection(self):
         """Get preferences collection from MongoDB."""
-        from backend.app.db.async_mongo import get_async_db
-        db = await get_async_db()
+        from backend.app.db.database import db_manager
+        db = db_manager.db
         return db["preferences"]
     
     async def get(self, pref_type: str) -> dict:

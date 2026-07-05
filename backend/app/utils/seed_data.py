@@ -3,7 +3,7 @@ ASTA Seed Data
 Seeds MongoDB with initial content calendar topics on first run.
 """
 import logging
-from backend.app.db.async_mongo import get_async_db
+from backend.app.db.database import db_manager
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 async def seed_if_empty():
     """Seed MongoDB with initial data if collections are empty."""
     try:
-        db = await get_async_db()
+        db = db_manager.db
         
         # Seed LinkedIn calendar (30 topics)
         count = await db["content_calendar"].count_documents({"platform": "linkedin"})

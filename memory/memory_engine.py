@@ -320,7 +320,7 @@ class MemoryEngine:
                          summary: str, metadata: SessionMetadata) -> bool:
         """Save to Neo4j with error isolation."""
         for entity in entities:
-            await l2_graph.upsert_entity(entity.name, entity.entity_type, entity.description)
+            await l2_graph.upsert_entity(entity.name, entity.entity_type, entity.description, entity.relation_to_user)
             await l4_store.save_entity(entity)
         
         await l2_graph.link_session_to_entities(

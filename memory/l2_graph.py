@@ -84,7 +84,7 @@ class L2Graph:
             logger.error(f"Failed to create indexes: {e}")
             # Don't raise - indexes might already exist
     
-    async def upsert_entity(self, name: str, entity_type: str, description: str = "") -> None:
+    async def upsert_entity(self, name: str, entity_type: str, description: str = "", relation: str = "HAS") -> None:
         """
         Create or update an entity node and link it to Karthik.
         
@@ -92,6 +92,7 @@ class L2Graph:
             name: Entity name
             entity_type: One of ENTITY_TYPES (PROJECT, SKILL, etc.)
             description: Optional description
+            relation: Relationship type (e.g. WORKING_ON)
         """
         try:
             # Get Neo4j label for entity type - validate against whitelist
@@ -100,6 +101,10 @@ class L2Graph:
             # Security: Validate label is in allowed set
             if label not in NEO4J_LABELS.values():
                 label = "Topic"  # Safe fallback
+                
+            clean_rel = "".join(c for c in relation.upper() if c.isalnum() or c == "_")
+            if not clean_rel:
+                clean_rel = "HAS"
             
             async with self.driver.session() as session:
                 query = f"""
@@ -108,7 +113,7 @@ class L2Graph:
                 ON MATCH SET e.last_seen = datetime()
                 WITH e
                 MATCH (u:User {{name: "Karthik"}})
-                MERGE (u)-[:HAS]->(e)
+                MERGE (u)-[:{clean_rel}]->(e)
                 """
                 
                 await session.run(query, name=name, desc=description)
@@ -185,12 +190,12 @@ class L2Graph:
             async with self.driver.session() as session:
                 # Query for direct matches and related entities
                 query = f"""
-                MATCH (u:User {{name: "Karthik"}})-[:HAS]->(e)
+                MATCH (u:User {{name: "Karthik"}})-[]->(e)
                 WHERE e.name IN $names
                 MATCH (s:Session)-[:COVERS]->(e)
                 RETURN DISTINCT s.session_id as session_id
                 UNION
-                MATCH (u:User {{name: "Karthik"}})-[:HAS]->(e1)-[:RELATED_TO*1..{depth}]->(e2)
+                MATCH (u:User {{name: "Karthik"}})-[]->(e1)-[:RELATED_TO*1..{depth}]->(e2)
                 WHERE e1.name IN $names
                 MATCH (s:Session)-[:COVERS]->(e2)
                 RETURN DISTINCT s.session_id as session_id
@@ -291,7 +296,7 @@ class L2Graph:
         try:
             async with self.driver.session() as session:
                 query = """
-                MATCH (u:User {name: "Karthik"})-[:HAS]->(e)
+                MATCH (u:User {name: "Karthik"})-[]->(e)
                 RETURN DISTINCT e.name as name
                 """
                 

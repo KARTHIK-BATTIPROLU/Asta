@@ -12,7 +12,7 @@ from backend.app.services.notion_service import notion_service
 from backend.app.services.sheets_service import sheets_service
 from backend.app.services.image_service import image_service
 from backend.app.services.preferences_service import preferences_service
-from backend.app.db.async_mongo import get_async_db
+from backend.app.db.database import db_manager
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ DISCUSSION_SYSTEM = (
 
 async def load_calendar_topics(state: LinkedInState) -> LinkedInState:
     """Load pending LinkedIn topics from content calendar."""
-    db = await get_async_db()
+    db = db_manager.db
     topics = await db["content_calendar"].find(
         {"platform": "linkedin", "status": "pending"},
         {"_id": 0, "topic": 1}
@@ -207,7 +207,7 @@ async def write_to_sheet(state: LinkedInState) -> LinkedInState:
     
     # Mark topic as created in MongoDB
     if state.get("topic_source") == "calendar":
-        db = await get_async_db()
+        db = db_manager.db
         await db["content_calendar"].update_one(
             {"platform": "linkedin", "topic": state.get("topic", "")},
             {"$set": {"status": "created"}}

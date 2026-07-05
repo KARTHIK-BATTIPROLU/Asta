@@ -10,7 +10,7 @@ from typing import List, Optional
 
 from backend.app.api.routes import verify_token
 from backend.app.services.sheets_service import sheets_service
-from backend.app.db.async_mongo import get_async_db
+from backend.app.db.database import db_manager
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ async def get_calendar(platform: str, token: str = Depends(verify_token)):
         )
     
     try:
-        db = await get_async_db()
+        db = db_manager.db
         topics = await db["content_calendar"].find(
             {"platform": platform}
         ).to_list(100)
@@ -77,7 +77,7 @@ async def add_to_calendar(
         )
     
     try:
-        db = await get_async_db()
+        db = db_manager.db
         result = await db["content_calendar"].insert_one({
             "platform": platform,
             "topic": topic_data.topic,
@@ -182,7 +182,7 @@ async def get_content_logs(platform: str, token: str = Depends(verify_token)):
         )
     
     try:
-        db = await get_async_db()
+        db = db_manager.db
         logs = await db["content_logs"].find(
             {"platform": platform}
         ).sort("created_at", -1).limit(50).to_list(50)
@@ -208,7 +208,7 @@ async def seed_calendar(token: str = Depends(verify_token)):
     try:
         from backend.app.core.llm_factory import llm_router
         
-        db = await get_async_db()
+        db = db_manager.db
         
         # Check if calendar is already seeded
         count = await db["content_calendar"].count_documents({})

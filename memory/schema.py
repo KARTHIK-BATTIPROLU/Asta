@@ -19,6 +19,7 @@ class Entity:
     name: str
     entity_type: str          # one of ENTITY_TYPES
     description: str = ""
+    relation_to_user: str = "HAS" # Dynamic relation, e.g. WORKING_ON
     confidence: float = 1.0   # 0.0–1.0, from LLM extraction
 
 @dataclass

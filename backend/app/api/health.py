@@ -38,8 +38,8 @@ async def deep_health_check(token: str = Depends(verify_token)):
     
     # Check MongoDB
     try:
-        from backend.app.db.async_mongo import get_async_db
-        db = await get_async_db()
+        from backend.app.db.database import db_manager
+        db = db_manager.db
         await db.command("ping")
         health_status["services"]["mongodb"] = {
             "status": "ok",

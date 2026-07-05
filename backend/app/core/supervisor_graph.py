@@ -29,7 +29,7 @@ CHAT_SYSTEM = (
     "contain it, say you don't have that on record — never guess or invent details."
 )
 
-# Fast keyword paths for classify_intent — also consulted by ws_routes.py to
+# Fast keyword paths for classify_intent — also consulted by ws_transport.py to
 # decide whether a WS turn should be routed through the supervisor graph.
 ROUTINE_KEYWORDS = ["remind", "remimder", "reminder", "schedule", "task", "tasks", "add a",
                     "morning", "night", "wake", "alarm", "plan my day", "to-do", "todo",
@@ -91,18 +91,7 @@ def should_search_memory(text: str) -> bool:
 
 # ── STATE ────────────────────────────────────────────────────────────────────
 
-class SupervisorState(TypedDict, total=False):
-    user_input: str
-    intent: str
-    task_data: dict
-    response: str
-    session_id: str
-    messages: list
-    memory_context: str
-    start_time: str
-    error: str
-    research_context: dict
-    content_state: dict
+from backend.app.core.graph_state import SupervisorState
 
 
 # Keep references to fire-and-forget memory writes so they aren't GC'd mid-flight.
@@ -234,42 +223,22 @@ async def routine_workflow(state: SupervisorState) -> SupervisorState:
             state["task_data"]["notion_page_id"] = result["notion_page_id"]
         return state
 
-    # Morning brief / night planning / alarm → existing routine graph (unchanged).
+    # Morning brief / night planning / alarm → RoutineEngine
     try:
-        from backend.app.workflows.routine_graph import routine_graph
+        from backend.app.workflows.routine_engine import RoutineEngine
+        engine = RoutineEngine()
+        session_id = state.get("session_id", "routine-session")
+        
+        if any(w in low for w in ["night planning", "plan tomorrow", "end of day", "wrap up", "good night"]):
+            result_text = await engine.run_night_routine(session_id)
+        else:
+            from backend.app.services.preferences_service import preferences_service
+            prefs = await preferences_service.get(session_id)
+            user_city = prefs.get("city", "San Francisco")
+            result_text = await engine.run_morning_routine(user_city, session_id)
 
-        routine_state = {
-            "session_id": state.get("session_id", ""),
-            "workflow_type": "routine",
-            "messages": state.get("messages", []),
-            "current_input": state.get("user_input", ""),
-            "asta_response": "",
-            "memory_context": "",
-            "retrieved_memories": [],
-            "session_summary": "",
-            "needs_clarification": False,
-            "clarification_question": "",
-            "is_complete": False,
-            "notion_page_id": None,
-            "tools_used": [],
-            "intermediate_stages": [],
-            "error": None,
-            "start_time": datetime.utcnow().isoformat(),
-            "pending_tasks": [],
-            "todays_tasks": [],
-            "task_data": {},
-            "weather_data": {},
-            "news_items": [],
-            "gratitude_entries": [],
-            "rescheduled_tasks": [],
-            "alarm_acknowledged": False,
-            "nag_count": 0,
-            "routine_phase": "",
-        }
-
-        result = await routine_graph.ainvoke(routine_state)
-        state["response"] = result.get("asta_response", "Done, boss.")
-        state["task_data"] = result.get("task_data", {}) or {}
+        state["response"] = result_text
+        state["task_data"] = {}
     except Exception as e:
         logger.error(f"[routine_workflow] {e}", exc_info=True)
         state["response"] = f"Boss, I hit a snag handling that routine task: {e}"
@@ -457,7 +426,7 @@ async def is_awaiting_resume(session_id: str) -> bool:
     """True if this thread is paused on an interrupt() or mid-content-review
     (content_state.phase == "awaiting_review"), so the next message must be
     routed straight back into run_supervisor_graph regardless of keywords.
-    Used by ws_routes.py to decide should_use_workflow before classification."""
+    Used by ws_transport.py to decide should_use_workflow before classification."""
     if not session_id:
         return False
     try:

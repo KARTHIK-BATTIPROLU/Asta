@@ -1,0 +1,1227 @@
+{
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\.claude\\settings.local.json": {
+    "mtime": 1781486125.0901346,
+    "ast_hash": "acfcadf0af9d51dd285d42ce8fde1455",
+    "semantic_hash": "acfcadf0af9d51dd285d42ce8fde1455"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\.vscode\\settings.json": {
+    "mtime": 1777029225.114226,
+    "ast_hash": "2d06b60b7caf61c40b4ebbd7f8a1afa2",
+    "semantic_hash": "2d06b60b7caf61c40b4ebbd7f8a1afa2"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\.vscode\\settings.json": {
+    "mtime": 1775745244.5120175,
+    "ast_hash": "2d06b60b7caf61c40b4ebbd7f8a1afa2",
+    "semantic_hash": "2d06b60b7caf61c40b4ebbd7f8a1afa2"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\build.gradle.kts": {
+    "mtime": 1781623205.885085,
+    "ast_hash": "0b23cea6de85dfbd20ffa3841d540042",
+    "semantic_hash": "0b23cea6de85dfbd20ffa3841d540042"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\google-services.json": {
+    "mtime": 1781622989.7240703,
+    "ast_hash": "eb78d2eb84b25e2c8ee38c708e96a104",
+    "semantic_hash": "eb78d2eb84b25e2c8ee38c708e96a104"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\androidTest\\java\\com\\example\\asta\\ExampleInstrumentedTest.kt": {
+    "mtime": 1772709448.8807974,
+    "ast_hash": "9e91a8acc1cf520c5d0772e89c21b6ad",
+    "semantic_hash": "9e91a8acc1cf520c5d0772e89c21b6ad"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\AstaApplication.kt": {
+    "mtime": 1781623239.7282429,
+    "ast_hash": "4fccbe7172d991bf49736e03b1f0b5e4",
+    "semantic_hash": "4fccbe7172d991bf49736e03b1f0b5e4"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\assistant\\AssistantController.java": {
+    "mtime": 1775762396.271248,
+    "ast_hash": "e01b4cc7012b519254b7739a8ce5cddb",
+    "semantic_hash": "e01b4cc7012b519254b7739a8ce5cddb"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\assistant\\SpeechManager.java": {
+    "mtime": 1774206450.0005913,
+    "ast_hash": "8164dce63c53e3510874d61bebb78148",
+    "semantic_hash": "8164dce63c53e3510874d61bebb78148"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\assistant\\TTSManager.java": {
+    "mtime": 1774206450.0005913,
+    "ast_hash": "f9d750434f51a95b1b0d63a015950925",
+    "semantic_hash": "f9d750434f51a95b1b0d63a015950925"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\assistant\\VoiceAssistantActivity.kt": {
+    "mtime": 1781345096.5546308,
+    "ast_hash": "89715ef8ecb67e198b44332aa1ca1253",
+    "semantic_hash": "89715ef8ecb67e198b44332aa1ca1253"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\assistant\\VoiceAssistantViewModel.kt": {
+    "mtime": 1775744607.9099848,
+    "ast_hash": "b7265b9c1bcc0d423377f238aa036663",
+    "semantic_hash": "b7265b9c1bcc0d423377f238aa036663"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\assistant\\audio\\AudioPlayer.java": {
+    "mtime": 1775719397.894771,
+    "ast_hash": "99915228906939ee9798144b003f7feb",
+    "semantic_hash": "99915228906939ee9798144b003f7feb"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\assistant\\audio\\AudioRecorder.java": {
+    "mtime": 1775719397.8995156,
+    "ast_hash": "0df31783f86ea4647c7247463bd989a1",
+    "semantic_hash": "0df31783f86ea4647c7247463bd989a1"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\assistant\\audio\\VADProcessor.java": {
+    "mtime": 1775719397.8995156,
+    "ast_hash": "f69faa269d92fbbf8e06e611819755f9",
+    "semantic_hash": "f69faa269d92fbbf8e06e611819755f9"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\audio\\AudioStreamer.kt": {
+    "mtime": 1781605531.2986884,
+    "ast_hash": "47e6326cd6e9090bb882dbf08a30da93",
+    "semantic_hash": "47e6326cd6e9090bb882dbf08a30da93"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\model\\AstaModels.kt": {
+    "mtime": 1775744572.8923647,
+    "ast_hash": "92788b20c54fb151d51226554872d118",
+    "semantic_hash": "92788b20c54fb151d51226554872d118"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\model\\ChatRequest.java": {
+    "mtime": 1774169118.173384,
+    "ast_hash": "627dfe839f0b401937f760f8c378ad80",
+    "semantic_hash": "627dfe839f0b401937f760f8c378ad80"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\model\\ChatResponse.java": {
+    "mtime": 1774169118.173384,
+    "ast_hash": "8679d34bacf633183f614faea77b0b19",
+    "semantic_hash": "8679d34bacf633183f614faea77b0b19"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\model\\Message.java": {
+    "mtime": 1774169118.173384,
+    "ast_hash": "5a658d9fed62b62c6eebddd1de50e3c0",
+    "semantic_hash": "5a658d9fed62b62c6eebddd1de50e3c0"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\model\\VoiceResponse.java": {
+    "mtime": 1774169118.173384,
+    "ast_hash": "d67cf2a213f84f1d3ca72611e18fa04c",
+    "semantic_hash": "d67cf2a213f84f1d3ca72611e18fa04c"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\network\\ApiClient.java": {
+    "mtime": 1776800960.4624972,
+    "ast_hash": "62e6724f37abcdb185e65f8d1b699ebd",
+    "semantic_hash": "62e6724f37abcdb185e65f8d1b699ebd"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\network\\ApiService.java": {
+    "mtime": 1776800548.224021,
+    "ast_hash": "82a6f6f2164ee8c8f4eaf438c1028861",
+    "semantic_hash": "82a6f6f2164ee8c8f4eaf438c1028861"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\network\\AstaApiService.kt": {
+    "mtime": 1775744572.8923647,
+    "ast_hash": "4a3b1925f83e3b522301500ecff2c6c3",
+    "semantic_hash": "4a3b1925f83e3b522301500ecff2c6c3"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\network\\AstaNetworkClient.kt": {
+    "mtime": 1783060370.6909547,
+    "ast_hash": "17d7c7808fc0bc2a3902ef64dde8b4c9",
+    "semantic_hash": "17d7c7808fc0bc2a3902ef64dde8b4c9"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\network\\NgrokUrlFetcher.kt": {
+    "mtime": 1777017936.716634,
+    "ast_hash": "9d35582fd26f7c75f7bf49f10be8a969",
+    "semantic_hash": "9d35582fd26f7c75f7bf49f10be8a969"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\network\\WebSocketManager.java": {
+    "mtime": 1775719397.8995156,
+    "ast_hash": "b286e6b88ea4363c0f4772b06e6588d6",
+    "semantic_hash": "b286e6b88ea4363c0f4772b06e6588d6"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\repository\\AstaRepository.kt": {
+    "mtime": 1775744572.9072747,
+    "ast_hash": "96c2c963e20e204687c742e50efd2a6c",
+    "semantic_hash": "96c2c963e20e204687c742e50efd2a6c"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\service\\ASTAForegroundService.kt": {
+    "mtime": 1781605502.572399,
+    "ast_hash": "1a252efb38eba1ca43e508ae7c537936",
+    "semantic_hash": "1a252efb38eba1ca43e508ae7c537936"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\service\\AstaFcmService.kt": {
+    "mtime": 1781623157.8724775,
+    "ast_hash": "fc695ebc8273bd555ca4313f5838979f",
+    "semantic_hash": "fc695ebc8273bd555ca4313f5838979f"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\service\\OpenWakeWordEngine.kt": {
+    "mtime": 1777042372.292202,
+    "ast_hash": "d9f26c1773b239e133b381c87694e5c8",
+    "semantic_hash": "d9f26c1773b239e133b381c87694e5c8"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\service\\ProactiveListenerService.kt": {
+    "mtime": 1781604722.8419962,
+    "ast_hash": "4e0325d489c3b88f4bf4c87e490a4353",
+    "semantic_hash": "4e0325d489c3b88f4bf4c87e490a4353"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\service\\WakeWordService.kt": {
+    "mtime": 1777029595.5642736,
+    "ast_hash": "396781dc3293bcc9747973b947ee90ba",
+    "semantic_hash": "396781dc3293bcc9747973b947ee90ba"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\ui\\ChatAdapter.java": {
+    "mtime": 1777017985.3706832,
+    "ast_hash": "4b2fe49f68b79aff1f49d397d3e120ee",
+    "semantic_hash": "4b2fe49f68b79aff1f49d397d3e120ee"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\ui\\MainActivity.java": {
+    "mtime": 1781372305.9671333,
+    "ast_hash": "99696d30ed044a6ab08e7317129d1ece",
+    "semantic_hash": "99696d30ed044a6ab08e7317129d1ece"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\utils\\ConfigManager.java": {
+    "mtime": 1783060374.5641644,
+    "ast_hash": "1a1ab7083ce44954f7a0b8bbd49fc7cf",
+    "semantic_hash": "1a1ab7083ce44954f7a0b8bbd49fc7cf"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\utils\\SessionStore.kt": {
+    "mtime": 1781604704.7916121,
+    "ast_hash": "7b41e6aac686906d281768f841fbd405",
+    "semantic_hash": "7b41e6aac686906d281768f841fbd405"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\main\\java\\com\\example\\asta\\websocket\\ASTAWebSocketClient.kt": {
+    "mtime": 1776799301.08706,
+    "ast_hash": "8640f649e9612bdcc41d5711a5c684be",
+    "semantic_hash": "8640f649e9612bdcc41d5711a5c684be"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\app\\src\\test\\java\\com\\example\\asta\\ExampleUnitTest.kt": {
+    "mtime": 1772709448.8502002,
+    "ast_hash": "490d7b07f31ca48e1b262053ed9a460d",
+    "semantic_hash": "490d7b07f31ca48e1b262053ed9a460d"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\build.gradle.kts": {
+    "mtime": 1781623192.068084,
+    "ast_hash": "4fa46cdb8e3c1717f9f9f81c83b8b573",
+    "semantic_hash": "4fa46cdb8e3c1717f9f9f81c83b8b573"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.android\\Flutter\\build.gradle": {
+    "mtime": 1778354067.808949,
+    "ast_hash": "3933d54f3fe8c0186119205dae725466",
+    "semantic_hash": "3933d54f3fe8c0186119205dae725466"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.android\\Flutter\\src\\main\\java\\io\\flutter\\plugins\\GeneratedPluginRegistrant.java": {
+    "mtime": 1778354068.8771875,
+    "ast_hash": "eafc2e636fc948159e6ec29ad7f132fd",
+    "semantic_hash": "eafc2e636fc948159e6ec29ad7f132fd"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.android\\app\\build.gradle": {
+    "mtime": 1778354068.0186577,
+    "ast_hash": "c49788875eac626de9bc2473228d3d6e",
+    "semantic_hash": "c49788875eac626de9bc2473228d3d6e"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.android\\app\\src\\main\\java\\com\\example\\asta\\flutter_module\\host\\MainActivity.java": {
+    "mtime": 1778354068.05043,
+    "ast_hash": "5791b7bbd10c9c8ff460cdcb1e21b84f",
+    "semantic_hash": "5791b7bbd10c9c8ff460cdcb1e21b84f"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.android\\build.gradle": {
+    "mtime": 1778354067.8899252,
+    "ast_hash": "558a648dba4a96cf19e18f33a81dea36",
+    "semantic_hash": "558a648dba4a96cf19e18f33a81dea36"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.android\\gradlew": {
+    "mtime": 1778354067.9563193,
+    "ast_hash": "7f1cd7eb3f75a1dc85cd37753972a6e2",
+    "semantic_hash": "7f1cd7eb3f75a1dc85cd37753972a6e2"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.android\\include_flutter.groovy": {
+    "mtime": 1760725571.6380267,
+    "ast_hash": "1445523f0cfc05768b4c077778460d9a",
+    "semantic_hash": "1445523f0cfc05768b4c077778460d9a"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.android\\settings.gradle": {
+    "mtime": 1778354068.1117523,
+    "ast_hash": "c923d260b982613fe249cd916ca53c64",
+    "semantic_hash": "c923d260b982613fe249cd916ca53c64"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.dart_tool\\extension_discovery\\vs_code.json": {
+    "mtime": 1778377049.1438127,
+    "ast_hash": "cc4d7e10b2663e5641acec3eb8d1a677",
+    "semantic_hash": "cc4d7e10b2663e5641acec3eb8d1a677"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.dart_tool\\package_config.json": {
+    "mtime": 1778354069.157,
+    "ast_hash": "62c5db1dba968a1056eaa20a0ed38687",
+    "semantic_hash": "62c5db1dba968a1056eaa20a0ed38687"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.dart_tool\\package_graph.json": {
+    "mtime": 1778354067.4863503,
+    "ast_hash": "a4a30f54f0f8bbf8430afe9f3bc7437f",
+    "semantic_hash": "a4a30f54f0f8bbf8430afe9f3bc7437f"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.ios\\Flutter\\FlutterPluginRegistrant\\Classes\\GeneratedPluginRegistrant.h": {
+    "mtime": 1778354068.8872657,
+    "ast_hash": "decb9041b5e91a07e66f4664e5dac408",
+    "semantic_hash": "decb9041b5e91a07e66f4664e5dac408"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.ios\\Flutter\\FlutterPluginRegistrant\\Classes\\GeneratedPluginRegistrant.m": {
+    "mtime": 1778354068.8897831,
+    "ast_hash": "ef92f6b60e929ffc58321ff0d74cc9d5",
+    "semantic_hash": "ef92f6b60e929ffc58321ff0d74cc9d5"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.ios\\Flutter\\ephemeral\\flutter_lldb_helper.py": {
+    "mtime": 1778354068.7292345,
+    "ast_hash": "98fc75412162af387e2e3461e4e58094",
+    "semantic_hash": "98fc75412162af387e2e3461e4e58094"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.ios\\Flutter\\flutter_export_environment.sh": {
+    "mtime": 1778354068.7379985,
+    "ast_hash": "38131b9d76c3c7f0879d8ee208987e29",
+    "semantic_hash": "38131b9d76c3c7f0879d8ee208987e29"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.ios\\Flutter\\podhelper.rb": {
+    "mtime": 1778354068.160394,
+    "ast_hash": "9e03ae0c2d19d49beeb443346b9a72b9",
+    "semantic_hash": "9e03ae0c2d19d49beeb443346b9a72b9"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.ios\\Runner\\AppDelegate.h": {
+    "mtime": 1777906914.5019,
+    "ast_hash": "b09068b1f8df8bada0ef3fe272d3027a",
+    "semantic_hash": "b09068b1f8df8bada0ef3fe272d3027a"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.ios\\Runner\\AppDelegate.m": {
+    "mtime": 1777906914.5029118,
+    "ast_hash": "20b9d978405cb0c99a7312dd8fd07393",
+    "semantic_hash": "20b9d978405cb0c99a7312dd8fd07393"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.ios\\Runner\\Assets.xcassets\\AppIcon.appiconset\\Contents.json": {
+    "mtime": 1760725571.6504014,
+    "ast_hash": "31a08e429403e265cabfb31b3d65f049",
+    "semantic_hash": "31a08e429403e265cabfb31b3d65f049"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.ios\\Runner\\Assets.xcassets\\LaunchImage.imageset\\Contents.json": {
+    "mtime": 1760725571.6583989,
+    "ast_hash": "b9e927ac17345f2d5f052fe68a3487f9",
+    "semantic_hash": "b9e927ac17345f2d5f052fe68a3487f9"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.ios\\Runner\\SceneDelegate.h": {
+    "mtime": 1777906914.4991374,
+    "ast_hash": "ddfce2a7820cec13b369cd0cba5c5385",
+    "semantic_hash": "ddfce2a7820cec13b369cd0cba5c5385"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.ios\\Runner\\SceneDelegate.m": {
+    "mtime": 1777906914.4991374,
+    "ast_hash": "77b6b88ee0e4f7c8088fde23f105e27c",
+    "semantic_hash": "77b6b88ee0e4f7c8088fde23f105e27c"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.ios\\Runner\\main.m": {
+    "mtime": 1760725571.6633995,
+    "ast_hash": "747386bb19d3a6e37b6d91e6d5a5d36c",
+    "semantic_hash": "747386bb19d3a6e37b6d91e6d5a5d36c"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\lib\\main.dart": {
+    "mtime": 1776705478.172846,
+    "ast_hash": "a156fcff120cd543f2d596be9584c2bd",
+    "semantic_hash": "a156fcff120cd543f2d596be9584c2bd"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\lib\\screens\\content_studio.dart": {
+    "mtime": 1776705262.3958645,
+    "ast_hash": "1f9a5f479c993f3e70ef5eb81e3897fc",
+    "semantic_hash": "1f9a5f479c993f3e70ef5eb81e3897fc"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\lib\\screens\\jarvis_screen.dart": {
+    "mtime": 1776705506.1529088,
+    "ast_hash": "cb0869b8c3d3406740d0d8a9d42c11e0",
+    "semantic_hash": "cb0869b8c3d3406740d0d8a9d42c11e0"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\lib\\screens\\preferences_panel.dart": {
+    "mtime": 1776705383.6524978,
+    "ast_hash": "85aa4b81e4488d548dd59941a6dd5559",
+    "semantic_hash": "85aa4b81e4488d548dd59941a6dd5559"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\lib\\screens\\workflow_visualizer.dart": {
+    "mtime": 1776704939.528444,
+    "ast_hash": "d80377d4f00ed0ac3d0b8afa4bf507d6",
+    "semantic_hash": "d80377d4f00ed0ac3d0b8afa4bf507d6"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\lib\\services\\native_service.dart": {
+    "mtime": 1776705463.629611,
+    "ast_hash": "a407758682038e01c680e00870a28ed2",
+    "semantic_hash": "a407758682038e01c680e00870a28ed2"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\lib\\widgets\\jarvis_orb.dart": {
+    "mtime": 1776704805.5533507,
+    "ast_hash": "2f2469f253d3254fba6cd71808eb337f",
+    "semantic_hash": "2f2469f253d3254fba6cd71808eb337f"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\lib\\widgets\\stage_feed.dart": {
+    "mtime": 1776704909.4687033,
+    "ast_hash": "b91b01d95e831149a1840ace23c886c8",
+    "semantic_hash": "b91b01d95e831149a1840ace23c886c8"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\gradlew": {
+    "mtime": 1772709446.7428255,
+    "ast_hash": "266606e78242737ef3da02a80ea0564d",
+    "semantic_hash": "266606e78242737ef3da02a80ea0564d"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\settings.gradle.kts": {
+    "mtime": 1772709448.1415827,
+    "ast_hash": "c1919fcaee5ad2d93e8dc5ca581d1fee",
+    "semantic_hash": "c1919fcaee5ad2d93e8dc5ca581d1fee"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\__init__.py": {
+    "mtime": 1774104802.2169232,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\__init__.py": {
+    "mtime": 1774104802.4066513,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\api\\__init__.py": {
+    "mtime": 1774104802.4482505,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\api\\content.py": {
+    "mtime": 1781269634.7004087,
+    "ast_hash": "5491b9dca4a5003e7824b23eb187706b",
+    "semantic_hash": "5491b9dca4a5003e7824b23eb187706b"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\api\\health.py": {
+    "mtime": 1781269634.774959,
+    "ast_hash": "65c33f8ee95557dc2b7cf37e57b0a746",
+    "semantic_hash": "65c33f8ee95557dc2b7cf37e57b0a746"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\api\\preferences.py": {
+    "mtime": 1776686849.8554358,
+    "ast_hash": "3ebfddfe38eb34be26b7092a0861e51d",
+    "semantic_hash": "3ebfddfe38eb34be26b7092a0861e51d"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\api\\routes.py": {
+    "mtime": 1781605856.8827462,
+    "ast_hash": "452811a2bb4a3c99e481f5a50f4a2087",
+    "semantic_hash": "452811a2bb4a3c99e481f5a50f4a2087"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\api\\ws_routes.py": {
+    "mtime": 1781289293.0312479,
+    "ast_hash": "f5f2405b4475fb633b6963d2ed47cb63",
+    "semantic_hash": "f5f2405b4475fb633b6963d2ed47cb63"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\auth\\__init__.py": {
+    "mtime": 1776797858.5970325,
+    "ast_hash": "d160b7d157f505a53fff3b56f9db37d0",
+    "semantic_hash": "d160b7d157f505a53fff3b56f9db37d0"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\auth\\middleware.py": {
+    "mtime": 1776797860.7298923,
+    "ast_hash": "aa220a373aa0efe51b991ec484877a58",
+    "semantic_hash": "aa220a373aa0efe51b991ec484877a58"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\config.py": {
+    "mtime": 1781283517.382127,
+    "ast_hash": "de19e552b13bf9cfbd92ed891d47c860",
+    "semantic_hash": "de19e552b13bf9cfbd92ed891d47c860"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\core\\__init__.py": {
+    "mtime": 1776684964.9684196,
+    "ast_hash": "149effab6142ee123edf27bc2c879b2f",
+    "semantic_hash": "149effab6142ee123edf27bc2c879b2f"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\core\\base_tool.py": {
+    "mtime": 1774602817.6897979,
+    "ast_hash": "0fe115a219bd45ba87826c9774cee9b8",
+    "semantic_hash": "0fe115a219bd45ba87826c9774cee9b8"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\core\\checkpointer.py": {
+    "mtime": 1780388861.2532718,
+    "ast_hash": "b6c4a4530f21ef814d2ed1f3a12c50a1",
+    "semantic_hash": "b6c4a4530f21ef814d2ed1f3a12c50a1"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\core\\circuit_breaker.py": {
+    "mtime": 1776009577.286392,
+    "ast_hash": "73ad49fc95fd10c62ab91460e32c4578",
+    "semantic_hash": "73ad49fc95fd10c62ab91460e32c4578"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\core\\env_validation.py": {
+    "mtime": 1775985556.2100244,
+    "ast_hash": "e07c3db343071dd311d309b83f5456af",
+    "semantic_hash": "e07c3db343071dd311d309b83f5456af"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\core\\errors.py": {
+    "mtime": 1774602817.6746905,
+    "ast_hash": "fa111874f9d00fed3299a7294da37470",
+    "semantic_hash": "fa111874f9d00fed3299a7294da37470"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\core\\interfaces.py": {
+    "mtime": 1774607268.73045,
+    "ast_hash": "7246d51b5c7f625fc9cec74a185417ca",
+    "semantic_hash": "7246d51b5c7f625fc9cec74a185417ca"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\core\\llm_factory.py": {
+    "mtime": 1781375097.9427006,
+    "ast_hash": "e154037d31e6d034e8959122c6d85992",
+    "semantic_hash": "e154037d31e6d034e8959122c6d85992"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\core\\rate_limiter.py": {
+    "mtime": 1775985651.7733996,
+    "ast_hash": "5a788c07f286069dc99fd4c3c5cdaadf",
+    "semantic_hash": "5a788c07f286069dc99fd4c3c5cdaadf"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\core\\registry.py": {
+    "mtime": 1774605497.5458615,
+    "ast_hash": "aae9548260a2dbbc53d2e73c14180843",
+    "semantic_hash": "aae9548260a2dbbc53d2e73c14180843"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\core\\state.py": {
+    "mtime": 1780357013.834304,
+    "ast_hash": "9a745cee5c89b338d4116f50435fe346",
+    "semantic_hash": "9a745cee5c89b338d4116f50435fe346"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\core\\states.py": {
+    "mtime": 1776797977.1689925,
+    "ast_hash": "56ad278b9eedf3b52ce07276647778a6",
+    "semantic_hash": "56ad278b9eedf3b52ce07276647778a6"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\core\\supervisor_graph.py": {
+    "mtime": 1781606096.6402552,
+    "ast_hash": "de07a13f44524cf1a3693619225eae97",
+    "semantic_hash": "de07a13f44524cf1a3693619225eae97"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\core\\task_registry.py": {
+    "mtime": 1775944490.382079,
+    "ast_hash": "e4ad6ae6a261fd377fcfcd786cb41e03",
+    "semantic_hash": "e4ad6ae6a261fd377fcfcd786cb41e03"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\core\\turn_state.py": {
+    "mtime": 1775947953.5881684,
+    "ast_hash": "d6268e80567602dfde9559eb20c99ee2",
+    "semantic_hash": "d6268e80567602dfde9559eb20c99ee2"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\db\\__init__.py": {
+    "mtime": 1774090970.5058577,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\db\\async_mongo.py": {
+    "mtime": 1776688323.785468,
+    "ast_hash": "f51de0ae705244aefdee3773a32890ce",
+    "semantic_hash": "f51de0ae705244aefdee3773a32890ce"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\db\\database.py": {
+    "mtime": 1780392232.8597674,
+    "ast_hash": "12be2b408a65258a9bdb602d59c9ba77",
+    "semantic_hash": "12be2b408a65258a9bdb602d59c9ba77"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\db\\memory_handler.py": {
+    "mtime": 1775942874.2811522,
+    "ast_hash": "2780dd66a3196f1105e79fe3767245f0",
+    "semantic_hash": "2780dd66a3196f1105e79fe3767245f0"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\db\\mongo.py": {
+    "mtime": 1780392258.005291,
+    "ast_hash": "aaad24ee486dd3d4870509f0d69f0fe9",
+    "semantic_hash": "aaad24ee486dd3d4870509f0d69f0fe9"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\db\\mongo_hardening.py": {
+    "mtime": 1775943991.8738482,
+    "ast_hash": "58b250f74e7ac977b14e938377e03d3c",
+    "semantic_hash": "58b250f74e7ac977b14e938377e03d3c"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\db\\session.py": {
+    "mtime": 1775942853.0974593,
+    "ast_hash": "0adea566832bb50e5b5897e35c6d472d",
+    "semantic_hash": "0adea566832bb50e5b5897e35c6d472d"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\db_config.py": {
+    "mtime": 1775189755.1898513,
+    "ast_hash": "0a64d80db844f435994fce6df3cb4de7",
+    "semantic_hash": "0a64d80db844f435994fce6df3cb4de7"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\main.py": {
+    "mtime": 1781270095.2836902,
+    "ast_hash": "2f6765030055900b611e32b06d23597a",
+    "semantic_hash": "2f6765030055900b611e32b06d23597a"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\models\\action_model.py": {
+    "mtime": 1775930898.2968752,
+    "ast_hash": "d9900d531d081d2cb71e2c8f29f0be1f",
+    "semantic_hash": "d9900d531d081d2cb71e2c8f29f0be1f"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\models\\session_model.py": {
+    "mtime": 1774595088.97505,
+    "ast_hash": "a8767f46805143325e9ae511b9723d53",
+    "semantic_hash": "a8767f46805143325e9ae511b9723d53"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\__init__.py": {
+    "mtime": 1774160388.707257,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\action_dispatcher.py": {
+    "mtime": 1775470187.7278364,
+    "ast_hash": "b295512e75f92a654908eebdc6fa5cfd",
+    "semantic_hash": "b295512e75f92a654908eebdc6fa5cfd"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\action_executor.py": {
+    "mtime": 1781484463.2345564,
+    "ast_hash": "7b55910e23a46b4475830d01f21ef936",
+    "semantic_hash": "7b55910e23a46b4475830d01f21ef936"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\cache_service.py": {
+    "mtime": 1776689668.4167333,
+    "ast_hash": "b199e87368b88b629912387e6a491222",
+    "semantic_hash": "b199e87368b88b629912387e6a491222"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\deepgram_stt.py": {
+    "mtime": 1774198082.582186,
+    "ast_hash": "10f6f83ec1ccf156489be19bb40da311",
+    "semantic_hash": "10f6f83ec1ccf156489be19bb40da311"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\deepgram_tts.py": {
+    "mtime": 1776365733.1618412,
+    "ast_hash": "886727de6a0fafcd96e02000f6f1186c",
+    "semantic_hash": "886727de6a0fafcd96e02000f6f1186c"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\embedding.py": {
+    "mtime": 1780393347.3047438,
+    "ast_hash": "5b0b50a2a3147cceea6a90a0a18848eb",
+    "semantic_hash": "5b0b50a2a3147cceea6a90a0a18848eb"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\image_service.py": {
+    "mtime": 1781285909.119445,
+    "ast_hash": "b3a5b7ca72446d164747b1821d12ed63",
+    "semantic_hash": "b3a5b7ca72446d164747b1821d12ed63"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\intent_detector.py": {
+    "mtime": 1777019416.0568385,
+    "ast_hash": "60179614369726c32db919b62ad14d36",
+    "semantic_hash": "60179614369726c32db919b62ad14d36"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\l1_cache.py": {
+    "mtime": 1776800512.8572223,
+    "ast_hash": "309f69c5d9357aa4dc7a175de09a006f",
+    "semantic_hash": "309f69c5d9357aa4dc7a175de09a006f"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\l2_manager.py": {
+    "mtime": 1776186897.8893864,
+    "ast_hash": "f44d84fdf9f6335efe08ebccb69803e4",
+    "semantic_hash": "f44d84fdf9f6335efe08ebccb69803e4"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\llm_hardening.py": {
+    "mtime": 1774845518.7942674,
+    "ast_hash": "fd3af984f7e5833ac2ce972506ad9c3d",
+    "semantic_hash": "fd3af984f7e5833ac2ce972506ad9c3d"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\llm_queue.py": {
+    "mtime": 1775947969.9384348,
+    "ast_hash": "66eb8395f5f3b9abdfd30c8525f0356c",
+    "semantic_hash": "66eb8395f5f3b9abdfd30c8525f0356c"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\llm_service.py": {
+    "mtime": 1776685631.5243263,
+    "ast_hash": "0281fdbbd31a4d6fda976fe7e7e226a2",
+    "semantic_hash": "0281fdbbd31a4d6fda976fe7e7e226a2"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\memory_orchestrator.py": {
+    "mtime": 1781518120.8753269,
+    "ast_hash": "0691a1b0ee2dadad4b23ec83f5d38b0a",
+    "semantic_hash": "0691a1b0ee2dadad4b23ec83f5d38b0a"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\notion_service.py": {
+    "mtime": 1781285432.7896137,
+    "ast_hash": "f445b816650079acf7104a8d1c99f5ef",
+    "semantic_hash": "f445b816650079acf7104a8d1c99f5ef"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\preferences_service.py": {
+    "mtime": 1781604659.4615061,
+    "ast_hash": "6c8b2c0ff070dd2bb183643c65326d66",
+    "semantic_hash": "6c8b2c0ff070dd2bb183643c65326d66"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\research_service.py": {
+    "mtime": 1781269634.6134355,
+    "ast_hash": "605c52061c2418b7f0252ba470eae006",
+    "semantic_hash": "605c52061c2418b7f0252ba470eae006"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\scheduler_service.py": {
+    "mtime": 1776686285.2098918,
+    "ast_hash": "37974c9e9db5fb50d050713062835b1b",
+    "semantic_hash": "37974c9e9db5fb50d050713062835b1b"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\security.py": {
+    "mtime": 1774595089.0116427,
+    "ast_hash": "ebafc53847226ba55b218a3b00257259",
+    "semantic_hash": "ebafc53847226ba55b218a3b00257259"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\session_manager.py": {
+    "mtime": 1781483961.0562477,
+    "ast_hash": "b6b22b80c8e3284ac4fe6240d3cd3f84",
+    "semantic_hash": "b6b22b80c8e3284ac4fe6240d3cd3f84"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\sheets_service.py": {
+    "mtime": 1776688135.851513,
+    "ast_hash": "0eedcb25534053c7044242148001f50b",
+    "semantic_hash": "0eedcb25534053c7044242148001f50b"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\simple_llm.py": {
+    "mtime": 1774979588.6109643,
+    "ast_hash": "10152c94b0bb7e12778397de71afbb31",
+    "semantic_hash": "10152c94b0bb7e12778397de71afbb31"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\stt_service.py": {
+    "mtime": 1775166197.5678828,
+    "ast_hash": "e1c4918c5fe6c0af07ade3b3184aae2f",
+    "semantic_hash": "e1c4918c5fe6c0af07ade3b3184aae2f"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\tts_service.py": {
+    "mtime": 1776365735.1509821,
+    "ast_hash": "6b3b90dade32ba3a6ae0bf08f4f32ad4",
+    "semantic_hash": "6b3b90dade32ba3a6ae0bf08f4f32ad4"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\vad_service.py": {
+    "mtime": 1774470993.93799,
+    "ast_hash": "c62bdbcc889a4a5d5aebace4d7441843",
+    "semantic_hash": "c62bdbcc889a4a5d5aebace4d7441843"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\wake_word_service.py": {
+    "mtime": 1776366968.4045916,
+    "ast_hash": "dc9ade4967db411ee29b9cb16c95a5b1",
+    "semantic_hash": "dc9ade4967db411ee29b9cb16c95a5b1"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\services\\weather_service.py": {
+    "mtime": 1776688135.8547125,
+    "ast_hash": "1e55a96aafd283f3bed1907cac7fe465",
+    "semantic_hash": "1e55a96aafd283f3bed1907cac7fe465"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\speech\\deepgram_client.py": {
+    "mtime": 1774198170.558444,
+    "ast_hash": "83ad00703699c699c025abf4078cb6ca",
+    "semantic_hash": "83ad00703699c699c025abf4078cb6ca"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\speech\\deepgram_stream.py": {
+    "mtime": 1775950712.3473356,
+    "ast_hash": "537da7128daad37dc1cf52d37d2c21e5",
+    "semantic_hash": "537da7128daad37dc1cf52d37d2c21e5"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\speech\\tts_client.py": {
+    "mtime": 1776365735.3838985,
+    "ast_hash": "4781593e51f1d17d73a4cfbc01530ab4",
+    "semantic_hash": "4781593e51f1d17d73a4cfbc01530ab4"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\tools\\__init__.py": {
+    "mtime": 1775990293.3277726,
+    "ast_hash": "936b6fce2708335c7d85fa44764c1503",
+    "semantic_hash": "936b6fce2708335c7d85fa44764c1503"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\tools\\base_tool.py": {
+    "mtime": 1775990293.3277726,
+    "ast_hash": "3da6c4dd03d1e3ccbdd47b5f50e34a1c",
+    "semantic_hash": "3da6c4dd03d1e3ccbdd47b5f50e34a1c"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\tools\\calendar_tool.py": {
+    "mtime": 1775991452.0892758,
+    "ast_hash": "b92605238a11613fb8688f022011d387",
+    "semantic_hash": "b92605238a11613fb8688f022011d387"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\tools\\image_tool.py": {
+    "mtime": 1775991819.1656551,
+    "ast_hash": "a7e0a9746d27928f57804517afd77c4b",
+    "semantic_hash": "a7e0a9746d27928f57804517afd77c4b"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\tools\\news_tool.py": {
+    "mtime": 1775983024.1588383,
+    "ast_hash": "8c3067e2d062d25e5b5a554ea3650f9a",
+    "semantic_hash": "8c3067e2d062d25e5b5a554ea3650f9a"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\tools\\notion_tool.py": {
+    "mtime": 1776535281.875626,
+    "ast_hash": "dc8fd2f4909972f380c6c9fe21703948",
+    "semantic_hash": "dc8fd2f4909972f380c6c9fe21703948"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\tools\\search_tool.py": {
+    "mtime": 1775991618.5462108,
+    "ast_hash": "7c5224d36992c7d9c6a809327d085051",
+    "semantic_hash": "7c5224d36992c7d9c6a809327d085051"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\tools\\tool_registry.py": {
+    "mtime": 1777019378.0405612,
+    "ast_hash": "f7162ff462409bc541e992ba651ed54e",
+    "semantic_hash": "f7162ff462409bc541e992ba651ed54e"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\tools\\weather_tool.py": {
+    "mtime": 1775983022.1325395,
+    "ast_hash": "df23d90abe3ba696f9b81f3996a65317",
+    "semantic_hash": "df23d90abe3ba696f9b81f3996a65317"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\utils\\__init__.py": {
+    "mtime": 1776687070.6865408,
+    "ast_hash": "82e122a4865c87e99bb2a04978e45411",
+    "semantic_hash": "82e122a4865c87e99bb2a04978e45411"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\utils\\seed_data.py": {
+    "mtime": 1776687095.5288002,
+    "ast_hash": "4c7bba418647d1b9388c1c3bf1734a7a",
+    "semantic_hash": "4c7bba418647d1b9388c1c3bf1734a7a"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\utils\\summary_generator.py": {
+    "mtime": 1775561917.0579586,
+    "ast_hash": "8e2dedd2bbd2d10590db6d6844edbd49",
+    "semantic_hash": "8e2dedd2bbd2d10590db6d6844edbd49"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\workflows\\__init__.py": {
+    "mtime": 1776686361.9070382,
+    "ast_hash": "bdf85660651107ca6454821e9e6efffa",
+    "semantic_hash": "bdf85660651107ca6454821e9e6efffa"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\workflows\\content_engine.py": {
+    "mtime": 1776008663.971048,
+    "ast_hash": "0f5a794af8a322ca3c543447dd71014e",
+    "semantic_hash": "0f5a794af8a322ca3c543447dd71014e"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\workflows\\content_manager.py": {
+    "mtime": 1781622663.114795,
+    "ast_hash": "32bf1381bdda2382d6ac611ce9a7848e",
+    "semantic_hash": "32bf1381bdda2382d6ac611ce9a7848e"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\workflows\\habit_graph.py": {
+    "mtime": 1781269634.0386088,
+    "ast_hash": "c6b0eeb81a3c97f727995a0141d94e78",
+    "semantic_hash": "c6b0eeb81a3c97f727995a0141d94e78"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\workflows\\instagram_graph.py": {
+    "mtime": 1781269634.1125138,
+    "ast_hash": "f374d82cbdc47c0517e9990df6e0d299",
+    "semantic_hash": "f374d82cbdc47c0517e9990df6e0d299"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\workflows\\linkedin_graph.py": {
+    "mtime": 1781269634.1773827,
+    "ast_hash": "d856c3f756d280d1120e3d69de70818a",
+    "semantic_hash": "d856c3f756d280d1120e3d69de70818a"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\workflows\\research_engine.py": {
+    "mtime": 1776062026.6698458,
+    "ast_hash": "5456524a3e39e1d2d11ee443fecbe288",
+    "semantic_hash": "5456524a3e39e1d2d11ee443fecbe288"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\workflows\\research_graph.py": {
+    "mtime": 1781269634.2433112,
+    "ast_hash": "89b83d699d1e707e221b1023409c355d",
+    "semantic_hash": "89b83d699d1e707e221b1023409c355d"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\workflows\\research_manager.py": {
+    "mtime": 1781284467.496154,
+    "ast_hash": "690af782fe043f946c7cdaef8fc65bbe",
+    "semantic_hash": "690af782fe043f946c7cdaef8fc65bbe"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\workflows\\routine_engine.py": {
+    "mtime": 1776059310.9092228,
+    "ast_hash": "378187e83e27a45cf5a3cce7232d05d4",
+    "semantic_hash": "378187e83e27a45cf5a3cce7232d05d4"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\workflows\\routine_graph.py": {
+    "mtime": 1781269634.3160434,
+    "ast_hash": "aa6ed2edfe5bcd4aa8cb484ac4d26602",
+    "semantic_hash": "aa6ed2edfe5bcd4aa8cb484ac4d26602"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\workflows\\study_planner.py": {
+    "mtime": 1776535205.6500328,
+    "ast_hash": "4bf39144c9acc0c0186595a462673ec1",
+    "semantic_hash": "4bf39144c9acc0c0186595a462673ec1"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\workflows\\study_planner_logic.py": {
+    "mtime": 1776534620.5337331,
+    "ast_hash": "6346455c1babee17218c10897989aeb1",
+    "semantic_hash": "6346455c1babee17218c10897989aeb1"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\workflows\\study_planner_notion.py": {
+    "mtime": 1776535041.6441271,
+    "ast_hash": "ef1b8f64166cba76b534ddd9e40a98be",
+    "semantic_hash": "ef1b8f64166cba76b534ddd9e40a98be"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\workflows\\task_manager.py": {
+    "mtime": 1781605659.7467144,
+    "ast_hash": "4a724c7a66e9b09cf8b76fa6e89309a6",
+    "semantic_hash": "4a724c7a66e9b09cf8b76fa6e89309a6"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\workflows\\youtube_engine.py": {
+    "mtime": 1776008778.2132487,
+    "ast_hash": "7385cbf061f70e3aac16060da3c14608",
+    "semantic_hash": "7385cbf061f70e3aac16060da3c14608"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\app\\workflows\\youtube_graph.py": {
+    "mtime": 1781269634.388161,
+    "ast_hash": "53cada9fa3299eacd6c453b276cad6f6",
+    "semantic_hash": "53cada9fa3299eacd6c453b276cad6f6"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\preferences\\content_style_prefs.json": {
+    "mtime": 1781620273.8639524,
+    "ast_hash": "db18abd8039b96615f977d11061e0cbd",
+    "semantic_hash": "db18abd8039b96615f977d11061e0cbd"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\preferences\\instagram_prefs.json": {
+    "mtime": 1776686330.2784073,
+    "ast_hash": "3d50030c47be9fae6ce933892a509ba8",
+    "semantic_hash": "3d50030c47be9fae6ce933892a509ba8"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\preferences\\linkedin_prefs.json": {
+    "mtime": 1776686317.8718412,
+    "ast_hash": "d064c83ad07abbf99270e841ccfd77c6",
+    "semantic_hash": "d064c83ad07abbf99270e841ccfd77c6"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\preferences\\news_prefs.json": {
+    "mtime": 1776686335.0993586,
+    "ast_hash": "2cacfc6ad4c140fa582c515631d08e1a",
+    "semantic_hash": "2cacfc6ad4c140fa582c515631d08e1a"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\backend\\preferences\\youtube_prefs.json": {
+    "mtime": 1776686323.3235054,
+    "ast_hash": "0a53aaea55731a450818503c185dabf1",
+    "semantic_hash": "0a53aaea55731a450818503c185dabf1"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\frontend\\eslint.config.js": {
+    "mtime": 1774033435.2178566,
+    "ast_hash": "49c8473bcfcec3aef596a5fb04a6df06",
+    "semantic_hash": "49c8473bcfcec3aef596a5fb04a6df06"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\frontend\\package.json": {
+    "mtime": 1774812740.4421499,
+    "ast_hash": "52d29413aa52a10dcd19beaf2bb2ea8d",
+    "semantic_hash": "52d29413aa52a10dcd19beaf2bb2ea8d"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\frontend\\public\\vad-processor.js": {
+    "mtime": 1775485476.3211544,
+    "ast_hash": "94b97b91c95845c4a20dde12534d58f1",
+    "semantic_hash": "94b97b91c95845c4a20dde12534d58f1"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\frontend\\src\\App.jsx": {
+    "mtime": 1781288316.8213644,
+    "ast_hash": "5cc7a6375cd07da06388614a10a8b27c",
+    "semantic_hash": "5cc7a6375cd07da06388614a10a8b27c"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\frontend\\src\\api\\index.js": {
+    "mtime": 1775082093.827538,
+    "ast_hash": "b23c70a1d2dad85d001a2d6705c4d008",
+    "semantic_hash": "b23c70a1d2dad85d001a2d6705c4d008"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\frontend\\src\\main.jsx": {
+    "mtime": 1774033435.2968898,
+    "ast_hash": "e13723e2574429d9a6d849727e3ff695",
+    "semantic_hash": "e13723e2574429d9a6d849727e3ff695"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\frontend\\vite.config.js": {
+    "mtime": 1774465920.5821,
+    "ast_hash": "e9a089fbf236e6472b1e062712913ba6",
+    "semantic_hash": "e9a089fbf236e6472b1e062712913ba6"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\gateway\\openclaw_gateway.py": {
+    "mtime": 1776009577.3019419,
+    "ast_hash": "a806759f87901d5e664670a060149be7",
+    "semantic_hash": "a806759f87901d5e664670a060149be7"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\get_ngrok_url.py": {
+    "mtime": 1777017828.4853594,
+    "ast_hash": "caf6ed87876afd4e7d153c787f90940b",
+    "semantic_hash": "caf6ed87876afd4e7d153c787f90940b"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\initialize_graph.py": {
+    "mtime": 1776188464.0682814,
+    "ast_hash": "6711062d8a2e1e8b2405c6b2ca6b0b89",
+    "semantic_hash": "6711062d8a2e1e8b2405c6b2ca6b0b89"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\install_wake_word.sh": {
+    "mtime": 1776366188.7444434,
+    "ast_hash": "fbd3487d2d3d6102cb5183a2e28c71b8",
+    "semantic_hash": "fbd3487d2d3d6102cb5183a2e28c71b8"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\__init__.py": {
+    "mtime": 1776682591.8107097,
+    "ast_hash": "5ea6bf75171684d866add5abdf1492eb",
+    "semantic_hash": "5ea6bf75171684d866add5abdf1492eb"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\e2e_test.py": {
+    "mtime": 1776863786.8644698,
+    "ast_hash": "78bad57d7696524b49dc9573ef1ebdb0",
+    "semantic_hash": "78bad57d7696524b49dc9573ef1ebdb0"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\embeddings.py": {
+    "mtime": 1780392275.1592646,
+    "ast_hash": "52699f40bee09ccf1c58cddc3cd9dc70",
+    "semantic_hash": "52699f40bee09ccf1c58cddc3cd9dc70"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\entity_extractor.py": {
+    "mtime": 1781374442.3840213,
+    "ast_hash": "95a23c31601e8990b3719e286f1a3d7a",
+    "semantic_hash": "95a23c31601e8990b3719e286f1a3d7a"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\granularity_proof.py": {
+    "mtime": 1781544651.1529737,
+    "ast_hash": "c770e6f8b485f3a00659a0716b839b40",
+    "semantic_hash": "c770e6f8b485f3a00659a0716b839b40"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\graph_service.py": {
+    "mtime": 1781375666.4266922,
+    "ast_hash": "e8f6f580a57d0ef0bcc61ddc63d97502",
+    "semantic_hash": "e8f6f580a57d0ef0bcc61ddc63d97502"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\l1_cache.py": {
+    "mtime": 1776682247.2680223,
+    "ast_hash": "9dd4593dff6c50139e4b546ba0707b24",
+    "semantic_hash": "9dd4593dff6c50139e4b546ba0707b24"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\l1_session.py": {
+    "mtime": 1776114155.9323833,
+    "ast_hash": "988817300cd545a9f9519239ef29f222",
+    "semantic_hash": "988817300cd545a9f9519239ef29f222"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\l2_graph.py": {
+    "mtime": 1776863579.7129178,
+    "ast_hash": "c9bb259456b221544814c45ee8712b11",
+    "semantic_hash": "c9bb259456b221544814c45ee8712b11"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\l3_vectors.py": {
+    "mtime": 1781544002.4353611,
+    "ast_hash": "4a3f715e646ea4fb7caf1ac1f79b1056",
+    "semantic_hash": "4a3f715e646ea4fb7caf1ac1f79b1056"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\l4_store.py": {
+    "mtime": 1781544608.1540482,
+    "ast_hash": "004a4a740839cfc9b601c753d619b0f3",
+    "semantic_hash": "004a4a740839cfc9b601c753d619b0f3"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\memory_engine.py": {
+    "mtime": 1781544621.7175748,
+    "ast_hash": "252da18300a3585be5c134400a33312f",
+    "semantic_hash": "252da18300a3585be5c134400a33312f"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\memory_orchestrator.py": {
+    "mtime": 1776151971.3203535,
+    "ast_hash": "07dd6a36164991b2bec1b546aed79310",
+    "semantic_hash": "07dd6a36164991b2bec1b546aed79310"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\memory_saga.py": {
+    "mtime": 1781375680.0017362,
+    "ast_hash": "d5bf46dc6594dd192467e3890284c972",
+    "semantic_hash": "d5bf46dc6594dd192467e3890284c972"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\prefetch_engine.py": {
+    "mtime": 1776860847.767871,
+    "ast_hash": "f27afe7c3ed28067433c80654a99db73",
+    "semantic_hash": "f27afe7c3ed28067433c80654a99db73"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\schema.py": {
+    "mtime": 1781543967.5215602,
+    "ast_hash": "38e098fbbdef51fb1c92952ea4623bf5",
+    "semantic_hash": "38e098fbbdef51fb1c92952ea4623bf5"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\schema_init.py": {
+    "mtime": 1776114887.092168,
+    "ast_hash": "7fb1c76937affdc816ec884cb7e28459",
+    "semantic_hash": "7fb1c76937affdc816ec884cb7e28459"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\stress_test.py": {
+    "mtime": 1776863570.0397666,
+    "ast_hash": "de75dd7809a0d8df4814374ea61eaf36",
+    "semantic_hash": "de75dd7809a0d8df4814374ea61eaf36"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\test_memory.py": {
+    "mtime": 1776682897.7318637,
+    "ast_hash": "38256e7ca994bbb7dae654f5628fa2db",
+    "semantic_hash": "38256e7ca994bbb7dae654f5628fa2db"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\notion_tests\\add_task.py": {
+    "mtime": 1776888367.1597092,
+    "ast_hash": "7f0e515a351385620d5fc316871a0089",
+    "semantic_hash": "7f0e515a351385620d5fc316871a0089"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\notion_tests\\cleanup_all_databases.py": {
+    "mtime": 1776886303.7971768,
+    "ast_hash": "91b378471e3347457761354beab93d20",
+    "semantic_hash": "91b378471e3347457761354beab93d20"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\notion_tests\\cleanup_routine_db.py": {
+    "mtime": 1776886152.516564,
+    "ast_hash": "c35b779dff3cafe2304b792cdf8d5172",
+    "semantic_hash": "c35b779dff3cafe2304b792cdf8d5172"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\notion_tests\\create_databases.py": {
+    "mtime": 1776883300.8087347,
+    "ast_hash": "8a309fe63411e150afca1cbf07cafc99",
+    "semantic_hash": "8a309fe63411e150afca1cbf07cafc99"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\notion_tests\\diagnose_notion.py": {
+    "mtime": 1776879564.8637025,
+    "ast_hash": "7bdf682dbc2659c5a61d0263d057bdb7",
+    "semantic_hash": "7bdf682dbc2659c5a61d0263d057bdb7"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\notion_tests\\show_pending_tasks.py": {
+    "mtime": 1776880992.7670264,
+    "ast_hash": "f434cf43d19b4822b2cba61982f4c5be",
+    "semantic_hash": "f434cf43d19b4822b2cba61982f4c5be"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\notion_tests\\test_notion_live.py": {
+    "mtime": 1776883439.9244044,
+    "ast_hash": "f5cd0dd5555545595fcbf508520bf678",
+    "semantic_hash": "f5cd0dd5555545595fcbf508520bf678"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\notion_tests\\test_routine_only.py": {
+    "mtime": 1776881222.7876434,
+    "ast_hash": "3af862d4c2bca21942506b2a395209b6",
+    "semantic_hash": "3af862d4c2bca21942506b2a395209b6"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\notion_tests\\test_three_databases.py": {
+    "mtime": 1776884677.8682945,
+    "ast_hash": "6ab1ca29b2a7b248e5fc18271cf52c6e",
+    "semantic_hash": "6ab1ca29b2a7b248e5fc18271cf52c6e"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\notion_tests\\update_database_ids.py": {
+    "mtime": 1776879663.9366822,
+    "ast_hash": "59143d9ddb3687701eb042dee9eb4cf0",
+    "semantic_hash": "59143d9ddb3687701eb042dee9eb4cf0"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\notion_tests\\verify_and_test.py": {
+    "mtime": 1776887221.3509517,
+    "ast_hash": "1444ae4fed38ea4d201f8fa9c57d6af6",
+    "semantic_hash": "1444ae4fed38ea4d201f8fa9c57d6af6"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\package.json": {
+    "mtime": 1774186937.374084,
+    "ast_hash": "7e5ac9603fd67389edee7b25a696ee70",
+    "semantic_hash": "7e5ac9603fd67389edee7b25a696ee70"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\run.py": {
+    "mtime": 1775018458.878374,
+    "ast_hash": "ce5e80ef50552423e5e51d16ebb97e95",
+    "semantic_hash": "ce5e80ef50552423e5e51d16ebb97e95"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\setup_android_openwakeword.sh": {
+    "mtime": 1777041174.0844414,
+    "ast_hash": "6934992d3ea18a6b88f971b112f6f9bf",
+    "semantic_hash": "6934992d3ea18a6b88f971b112f6f9bf"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\setup_memory_layer.sh": {
+    "mtime": 1776114655.4901948,
+    "ast_hash": "2bdb50a48d233a0a428594fac9ab67cc",
+    "semantic_hash": "2bdb50a48d233a0a428594fac9ab67cc"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\start_asta.py": {
+    "mtime": 1777018004.0955064,
+    "ast_hash": "9c7a73f0d053d7b5327f29badec0e64d",
+    "semantic_hash": "9c7a73f0d053d7b5327f29badec0e64d"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\start_asta.sh": {
+    "mtime": 1777018147.766709,
+    "ast_hash": "6f92fb44fc6300bc06a93153a71939f1",
+    "semantic_hash": "6f92fb44fc6300bc06a93153a71939f1"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\.kiro\\specs\\asta-mobile-backend-integration\\design.md": {
+    "mtime": 1776693943.2470312,
+    "ast_hash": "4d1d280012cf7501f01ec6d3e6d48925",
+    "semantic_hash": "4d1d280012cf7501f01ec6d3e6d48925"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\.kiro\\specs\\asta-mobile-backend-integration\\requirements.md": {
+    "mtime": 1776690797.3103964,
+    "ast_hash": "70e4e0d100046b6e37768359e3ca221a",
+    "semantic_hash": "70e4e0d100046b6e37768359e3ca221a"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\.kiro\\specs\\asta-mobile-backend-integration\\tasks.md": {
+    "mtime": 1776694228.4117727,
+    "ast_hash": "45cf44525f55b6b4491026a44f436f37",
+    "semantic_hash": "45cf44525f55b6b4491026a44f436f37"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.ios\\Flutter\\README.md": {
+    "mtime": 1760725571.6744175,
+    "ast_hash": "0caf146962a2b625829c43c9f0eddc90",
+    "semantic_hash": "0caf146962a2b625829c43c9f0eddc90"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\.ios\\Runner\\Assets.xcassets\\LaunchImage.imageset\\README.md": {
+    "mtime": 1760725571.660399,
+    "ast_hash": "f7ee1b402881509d197f34963e569927",
+    "semantic_hash": "f7ee1b402881509d197f34963e569927"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\ASTA MOBILE\\flutter_module\\pubspec.yaml": {
+    "mtime": 1776704580.4781694,
+    "ast_hash": "76da6edf81bdc8eced8d33bdc05fa87b",
+    "semantic_hash": "76da6edf81bdc8eced8d33bdc05fa87b"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\TODO.md": {
+    "mtime": 1781518822.992982,
+    "ast_hash": "358f53937389a44ada895715540b5e1e",
+    "semantic_hash": "358f53937389a44ada895715540b5e1e"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\docker-compose.yml": {
+    "mtime": 1780357154.6673558,
+    "ast_hash": "d862e79643b6a46f592923f5eecbec43",
+    "semantic_hash": "d862e79643b6a46f592923f5eecbec43"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\frontend\\index.html": {
+    "mtime": 1774034667.2586806,
+    "ast_hash": "8e25598ec40b63252ceae7780599796e",
+    "semantic_hash": "8e25598ec40b63252ceae7780599796e"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\AUDIT_REPORT_PHASE1.md": {
+    "mtime": 1776860771.0417445,
+    "ast_hash": "d6331a5f9cebc2e6f7a5713a87e2e56c",
+    "semantic_hash": "d6331a5f9cebc2e6f7a5713a87e2e56c"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\PHASE_2_COMPLETE.md": {
+    "mtime": 1776863665.9089234,
+    "ast_hash": "453ead47f826dcd570a71263c09f9278",
+    "semantic_hash": "453ead47f826dcd570a71263c09f9278"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\PHASE_3_COMPLETE.md": {
+    "mtime": 1776864156.135103,
+    "ast_hash": "8f8e2f8f286d3bf74d23f3cc13fc05d9",
+    "semantic_hash": "8f8e2f8f286d3bf74d23f3cc13fc05d9"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\README.md": {
+    "mtime": 1776114440.580957,
+    "ast_hash": "f728c1442c0ff8b8ba55be641c8262e8",
+    "semantic_hash": "f728c1442c0ff8b8ba55be641c8262e8"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\memory\\USAGE_GUIDE.md": {
+    "mtime": 1776795364.1200168,
+    "ast_hash": "c82567933d26df57033724e542c40617",
+    "semantic_hash": "c82567933d26df57033724e542c40617"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\notion_tests\\EXECUTIVE_SUMMARY.md": {
+    "mtime": 1776879826.2423985,
+    "ast_hash": "c97d94a60e01b078a8cc49ed995e818a",
+    "semantic_hash": "c97d94a60e01b078a8cc49ed995e818a"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\notion_tests\\FINAL_REPORT.md": {
+    "mtime": 1776887909.7630713,
+    "ast_hash": "1d8dd67955fcddb2fa1fc5c012d3d46f",
+    "semantic_hash": "1d8dd67955fcddb2fa1fc5c012d3d46f"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\notion_tests\\HOW_TO_GET_DATABASE_IDS.md": {
+    "mtime": 1776879771.6755543,
+    "ast_hash": "6f761236d5f6aaba9a365ceec8409ebf",
+    "semantic_hash": "6f761236d5f6aaba9a365ceec8409ebf"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\notion_tests\\PENDING_TASKS_REPORT.md": {
+    "mtime": 1776880806.5046113,
+    "ast_hash": "6167bc99930d36b585d816f7689c3ce5",
+    "semantic_hash": "6167bc99930d36b585d816f7689c3ce5"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\notion_tests\\PHASE_1_AUDIT_REPORT.md": {
+    "mtime": 1776879644.8367157,
+    "ast_hash": "e7c5bf2d652a05b230bb1325ed1e6987",
+    "semantic_hash": "e7c5bf2d652a05b230bb1325ed1e6987"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\notion_tests\\QUICK_REFERENCE.md": {
+    "mtime": 1776879900.6325622,
+    "ast_hash": "431a7ba43745dc25a9ccf95c2d6ae9d8",
+    "semantic_hash": "431a7ba43745dc25a9ccf95c2d6ae9d8"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\notion_tests\\README.md": {
+    "mtime": 1776879702.7531815,
+    "ast_hash": "182eea7afc0a1ac159ea860d86ed2219",
+    "semantic_hash": "182eea7afc0a1ac159ea860d86ed2219"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\render.yaml": {
+    "mtime": 1782158389.891645,
+    "ast_hash": "506458e975fda9b648da050661de9c57",
+    "semantic_hash": "506458e975fda9b648da050661de9c57"
+  },
+  "C:\\Users\\Karthik\\OneDrive\\Desktop\\ASTA\\requirements.txt": {
+    "mtime": 1782158364.923565,
+    "ast_hash": "a09f735107ba431a7f6747243f7bfe86",
+    "semantic_hash": "a09f735107ba431a7f6747243f7bfe86"
+  }
+}

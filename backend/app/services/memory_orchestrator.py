@@ -64,7 +64,7 @@ class MemoryOrchestrator:
                     trigger_query=partial_query
                 )
         except Exception as e:
-            logger.error(f"[L1.5 Prefetch] Background failure: {e}", exc_info=True)
+            logger.error(f"[L1.5] Prefetch cache failed: {e}", exc_info=True)
 
     # ── Retrieval Pipeline (unified) ─────────────────────────────────────
     async def cross_tier_retrieve(self, query: str, top_k: int = 8) -> str:

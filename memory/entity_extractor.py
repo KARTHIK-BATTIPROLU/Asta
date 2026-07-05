@@ -34,7 +34,7 @@ Rules:
 Return format:
 {
   "entities": [
-    {"name": "ASTA", "entity_type": "PROJECT", "description": "Personal AI assistant being built by Karthik", "confidence": 0.95},
+    {"name": "ASTA", "entity_type": "PROJECT", "description": "Personal AI assistant being built by Karthik", "relation_to_user": "WORKING_ON", "confidence": 0.95},
     ...
   ],
   "summary": "3-5 bullet points summarizing the key points of this conversation",
@@ -91,10 +91,18 @@ class EntityExtractor:
             entities = []
             for e in parsed.get("entities", []):
                 if e.get("name") and e.get("entity_type") in ENTITY_TYPES:
+                    
+                    # Sanitize relation string for Neo4j (uppercase, underscores only)
+                    raw_rel = e.get("relation_to_user", "HAS")
+                    clean_rel = "".join(c for c in raw_rel.upper() if c.isalnum() or c == "_")
+                    if not clean_rel:
+                        clean_rel = "HAS"
+                        
                     entities.append(Entity(
                         name=e["name"],
                         entity_type=e.get("entity_type", "TOPIC"),
                         description=e.get("description", ""),
+                        relation_to_user=clean_rel,
                         confidence=e.get("confidence", 0.8)
                     ))
             

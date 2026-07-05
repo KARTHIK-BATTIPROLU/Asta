@@ -1,5 +1,6 @@
 import sys
 import asyncio
+from contextlib import asynccontextmanager
 
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
@@ -13,12 +14,12 @@ from pydantic import BaseModel, ConfigDict
 from typing import List, Optional, Any, Union
 from backend.app.config import settings  # Updated to use new settings
 from backend.app.db.database import db_manager
-from backend.app.api.ws_routes import router as ws_router
+from backend.app.api.ws_transport import router as ws_router
 from backend.app.api.routes import router as api_router
 from backend.app.api.preferences import router as preferences_router
 from backend.app.api.content import router as content_router
 from backend.app.api.health import router as health_router
-from backend.app.auth.middleware import verify_token
+from backend.app.auth.token_auth import verify_bearer_and_device as verify_token
 from backend.app.core.registry import registry
 from backend.app.core.circuit_breaker import status_registry
 from backend.app.services.embedding import EmbeddingService
@@ -42,7 +43,41 @@ from memory import embeddings
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("ASTA_MVE")
 
-app = FastAPI(title="ASTA Realtime MVE")
+# Try to use uvloop for better performance
+try:
+    import uvloop
+    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+    logger.info("Using uvloop event loop policy")
+except ImportError:
+    pass
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    logger.info("Starting ASTA backend services...")
+    registry.initialize()
+    
+    # Start Scheduler and Accountability Monitor
+    from backend.app.services.scheduler_service import scheduler_service
+    scheduler_service.start()
+    
+    from backend.app.workflows.accountability_monitor import monitor
+    monitor.schedule_next()
+    
+    yield
+    
+    # Shutdown
+    logger.info("Shutting down ASTA backend services...")
+    await registry.shutdown()
+    scheduler_service.stop()
+    logger.info("Backend shutdown complete.")
+
+app = FastAPI(
+    title="ASTA Engine",
+    description="Advanced System for Task Automation",
+    version="1.0.0",
+    lifespan=lifespan
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -65,18 +100,9 @@ app.include_router(api_router, prefix="/api")
 app.include_router(preferences_router, prefix="/api")
 app.include_router(content_router, prefix="/api")
 app.include_router(health_router, prefix="/api")
+from backend.app.api import settings_routes
+app.include_router(settings_routes.router, prefix="/api", tags=["settings"])
 
-security = HTTPBearer()
-
-_API_BEARER_TOKEN = os.getenv("ASTA_API_BEARER_TOKEN", "").strip()
-
-def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)):
-    import hmac
-    if not _API_BEARER_TOKEN:
-        raise HTTPException(status_code=500, detail="ASTA_API_BEARER_TOKEN not configured")
-    if not hmac.compare_digest(credentials.credentials, _API_BEARER_TOKEN):
-        raise HTTPException(status_code=401, detail="Invalid token")
-    return credentials.credentials
 
 @app.get("/api/me")
 async def me(user=Depends(verify_token)):
@@ -305,12 +331,7 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"Pinecone initialization failed (RAG disabled): {e}")
 
-    # Initialize Neo4j base graph structure
-    try:
-        from memory.graph_service import graph_service as l3_manager
-        await l3_manager.initialize_base_graph()
-    except Exception as e:
-        logger.warning(f"Neo4j base graph initialization failed: {e}")
+    # Legacy Neo4j base graph initialization removed to retire the second Neo4j schema
 
     # Initialize Session Manager context
     try:
@@ -390,7 +411,7 @@ async def startup_event():
 
                 # Try to broadcast to WebSocket clients if available
                 try:
-                    from backend.app.api.ws_routes import broadcast_message
+                    from backend.app.api.ws_transport import broadcast_message
                     await broadcast_message({
                         "type": "asta_proactive",
                         "trigger": "morning_alarm",
@@ -414,7 +435,7 @@ async def startup_event():
 
                 # Try to broadcast to WebSocket clients if available
                 try:
-                    from backend.app.api.ws_routes import broadcast_message
+                    from backend.app.api.ws_transport import broadcast_message
                     await broadcast_message({
                         "type": "asta_proactive",
                         "trigger": "night_planning",

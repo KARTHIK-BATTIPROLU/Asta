@@ -14,6 +14,7 @@ websockets>=10.0
 langchain
 langgraph
 langchain-groq
+groq==0.37.1
 langchain-google-genai
 langchain-community
 regex
@@ -46,7 +47,7 @@ openai
 langgraph-checkpoint-postgres
 psycopg[binary]
 psycopg-pool
-langgraph-checkpoint-mongodb
+langgraph-checkpoint-mongodb==0.4.0
 
 # Firebase Admin SDK (FCM push notifications — gracefully skipped until service-account.json is present)
 firebase-admin

@@ -43,12 +43,23 @@ class CacheService:
         instance = await cls.get_instance()
         actual_ttl = ttl_seconds if ttl_seconds is not None else ttl
         await instance.set(key, value, actual_ttl)
-    
+
+    @classmethod
+    async def set_session_cache(cls, session_id: str, payload: Dict, ttl_seconds: int = 3600):
+        """Class method to set session cache with key prefix session_cache:"""
+        await cls.set_json(f"session_cache:{session_id}", payload, ttl=ttl_seconds)
+
+    @classmethod
+    async def get_session_cache(cls, session_id: str) -> Optional[Dict]:
+        """Class method to get session cache with key prefix session_cache:"""
+        return await cls.get_json(f"session_cache:{session_id}")
+
     @classmethod
     async def delete_session_cache(cls, session_id: str):
         """Class method to delete session cache"""
         instance = await cls.get_instance()
         await instance.delete(f"session:{session_id}")
+        await instance.delete(f"session_cache:{session_id}")
     
     async def initialize(self):
         """Initialize cache connection"""

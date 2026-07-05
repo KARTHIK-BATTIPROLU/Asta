@@ -2,10 +2,10 @@ import logging
 import asyncio
 import json
 from typing import Dict, Any, List
-from groq import AsyncGroq
 from backend.app.config import config as settings
 from backend.app.models.action_model import ActionRequest
 from backend.app.core.registry import registry
+from backend.app.core.llm_factory import acomplete
 
 logger = logging.getLogger("ResearchEngine")
 
@@ -18,9 +18,6 @@ class ResearchEngine:
     """
 
     def __init__(self):
-        self.groq_client = AsyncGroq(api_key=settings.GROQ_API_KEY)
-        self.reasoning_model = "llama-3.3-70b-versatile"
-        self.voice_model = "llama-3.1-8b-instant"
         self.research_db_id = getattr(settings, "NOTION_RESEARCH_DB", "").strip()
 
     async def _get_executor(self):
@@ -94,12 +91,28 @@ class ResearchEngine:
             )
             tasks.append(executor.execute_action(req))
             
+        # Add Arxiv Search for the main topic
+        arxiv_req = ActionRequest(
+            session_id=session_id,
+            tool_name="search",
+            parameters={"operation": "arxiv_search", "query": topic[:200], "num_results": 5},
+            intent=f"Arxiv search querying: {topic}",
+            memory_tag=f"research_arxiv:{topic.lower().replace(' ', '_')}"
+        )
+        tasks.append(executor.execute_action(arxiv_req))
+            
         results = await asyncio.gather(*tasks)
         
         aggregated_data = ""
-        for idx, res in enumerate(results):
+        # Process Web Queries
+        for idx, res in enumerate(results[:-1]):
             if res.status == "success":
                 aggregated_data += f"\n--- RESULTS FOR QUERY: '{queries[idx]}' ---\n{res.result}\n"
+                
+        # Process Arxiv Query
+        arxiv_res = results[-1]
+        if arxiv_res.status == "success" and "papers found" in arxiv_res.result:
+            aggregated_data += f"\n--- ACADEMIC PAPERS FROM arXiv ---\n{arxiv_res.result}\n"
         
         if not aggregated_data.strip():
             return "Search failed: Could not retrieve data for any subquery."
@@ -111,13 +124,13 @@ class ResearchEngine:
 Provide exactly 3 distinct, highly targeted web search queries that would yield the most comprehensive and diverse facts, technical details, or latest news on this topic.
 Format your response as a strict JSON array of strings, with NO markdown formatting, NO backticks, and NO other text."""
         try:
-            stream = await self.groq_client.chat.completions.create(
-                model=self.reasoning_model,
-                messages=[{"role": "system", "content": system_prompt}],
+            response_text = await acomplete(
+                system=system_prompt,
+                user="",
+                task="quick",
                 temperature=0.2,
                 max_tokens=500
             )
-            response_text = stream.choices[0].message.content.strip()
             # clean backticks if LLM accidentally outputs them
             if response_text.startswith("```json"):
                 response_text = response_text[7:]
@@ -142,26 +155,24 @@ Using the following raw web scraped data, produce a {kind}, highly structured Ma
 Format:
 # Research: {topic.title()}
 ## Executive Summary
-## Key Findings & Details
-## Sources / References (if URLs provided)
+## Technical Deep Dive
+## Key Facts & Players
+## Sources & References
 
-Stay strictly factual. Ignore irrelevant boilerplate from the scraped text."""
+Stay strictly factual. Ignore irrelevant boilerplate from the scraped text. You MUST use EXACTLY these four sections."""
 
         # Truncate raw data if it's monstrously huge (Groq max limit safety)
         # Deep agentic 3 queries * 2 results * 3000 chars = 18000 chars. Groq 8k handles ~32k chars safely.
         safe_raw_data = raw_data[:28000]
 
         try:
-            stream = await self.groq_client.chat.completions.create(
-                model=self.reasoning_model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"RAW DATA:\n{safe_raw_data}"}
-                ],
+            return await acomplete(
+                system=system_prompt,
+                user=f"RAW DATA:\n{safe_raw_data}",
+                task="research_synthesis",
                 temperature=0.3,
                 max_tokens=3000
             )
-            return stream.choices[0].message.content.strip()
         except Exception as e:
             logger.error(f"[ResearchEngine] Synthesis error: {e}")
             return f"**Synthesis Error:** Could not format report. Raw Data subset:\n{safe_raw_data[:2000]}..."
@@ -240,24 +251,21 @@ Stay strictly factual. Ignore irrelevant boilerplate from the scraped text."""
     async def _generate_spoken_summary(self, topic: str, synthesized_content: str, saved_to_notion: bool) -> str:
         notion_context = "Mention that you've saved the full report to the Research database in Notion under the project's page." if saved_to_notion else "Do NOT mention saving to Notion."
         system_prompt = f"""You are ASTA updating Karthik on research for '{topic}'.
-Summarize the main takeaway from the synthesized report in 2-3 short, spoken sentences.
+Summarize the main takeaway from the synthesized report.
 {notion_context}
-No markdown, no lists, just natural speech."""
+No markdown, no lists, just natural speech. You MUST keep your response strictly under 30 words so it takes less than 30 seconds to speak."""
 
         try:
-            stream = await self.groq_client.chat.completions.create(
-                model=self.voice_model, 
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"REPORT:\n{synthesized_content[:8000]}"}
-                ],
+            return await acomplete(
+                system=system_prompt,
+                user=synthesized_content[:3000],  # just give it a chunk to summarize
+                task="quick",
                 temperature=0.5,
                 max_tokens=150
             )
-            return stream.choices[0].message.content.strip()
         except Exception as e:
             logger.error(f"[ResearchEngine] Spoken summary error: {e}")
-            return f"I've completed the research on {topic}. " + ("It's saved in your Notion database." if saved_to_notion else "I couldn't save it to Notion, but I have the data.")
+            return f"I've completed the research on {topic} and saved it to your Notion workspace." if saved_to_notion else "I couldn't save it to Notion, but I have the data."
 
 # Singleton instance
 research_engine = ResearchEngine()

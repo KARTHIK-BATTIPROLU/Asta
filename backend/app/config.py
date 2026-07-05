@@ -49,12 +49,8 @@ class Settings(BaseSettings):
     STT_TIMEOUT_SECONDS: int = 25
     TTS_TIMEOUT_SECONDS: int = 25
     
-    # JWT Configuration
-    ASTA_JWT_SECRET: str = "change-me-in-production"
-    ASTA_JWT_TOKEN: str = "asta-dev-token-change-in-production"  # this is the single user's static token
-    
-    # WebSocket API Key (optional - if not set, no auth required)
-    API_KEY: str = ""
+    # Bearer Token Configuration
+    ASTA_API_BEARER_TOKEN: str = ""
     
     DB_NAME: str = "asta_db"
     COLLECTION_NAME: str = "reminders"
@@ -136,10 +132,12 @@ class Settings(BaseSettings):
         if not self.CELERY_RESULT_BACKEND and self.REDIS_URL:
             self.CELERY_RESULT_BACKEND = self.REDIS_URL.replace("/0", "/1")
 
-    def validate(self):
-        """
-        Validate critical environment variables.
-        """
+        # Enforce presence of ASTA_API_BEARER_TOKEN
+        if not self.ASTA_API_BEARER_TOKEN.strip():
+            logger.critical("FATAL: ASTA_API_BEARER_TOKEN is not set in environment variables! Shutting down.")
+            import sys
+            sys.exit("FATAL: ASTA_API_BEARER_TOKEN is not set")
+
         missing = []
         if not self.GROQ_API_KEY:
             missing.append("GROQ_API_KEY")

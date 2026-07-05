@@ -1,7 +1,7 @@
 import logging
 
-from backend.app.services.deepgram_stt import transcribe_audio
-from backend.app.services.deepgram_tts import text_to_speech
+from backend.app.services.stt_service import transcribe_audio
+from backend.app.services.tts_service import text_to_speech
 
 logger = logging.getLogger(__name__)
 

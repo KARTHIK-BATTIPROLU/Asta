@@ -17,9 +17,9 @@ from pydantic import BaseModel
 
 from backend.app.db.database import db_manager
 from backend.app.services.llm_service import stream_llm_response
-from backend.app.services.deepgram_tts import text_to_speech
+from backend.app.services.tts_service import text_to_speech
 from backend.app.core.circuit_breaker import status_registry
-from backend.app.api.ws_routes import fetch_memory_context
+from backend.app.api.turn_processor import fetch_memory_context
 from backend.app.services.l1_cache import l1_manager
 from backend.app.services.session_manager import SessionManager
 
@@ -80,17 +80,40 @@ def circuit_status():
     return status_registry.get_all_health()
 
 
-security = HTTPBearer()
+from backend.app.auth.token_auth import verify_bearer, verify_bearer_and_device
+from datetime import datetime, timezone
 
-_API_BEARER_TOKEN = os.getenv("ASTA_API_BEARER_TOKEN", "").strip()
+verify_token = verify_bearer_and_device
 
-
-def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)):
-    if not _API_BEARER_TOKEN:
-        raise HTTPException(status_code=500, detail="ASTA_API_BEARER_TOKEN not configured")
-    if not hmac.compare_digest(credentials.credentials, _API_BEARER_TOKEN):
-        raise HTTPException(status_code=401, detail="Invalid token")
-    return credentials.credentials
+@router.post("/device/register")
+async def register_device(payload: dict, token: str = Depends(verify_bearer)):
+    device_id = payload.get("device_id")
+    device_name = payload.get("device_name", "Unknown Android Device")
+    if not device_id:
+        raise HTTPException(status_code=400, detail="device_id is required")
+    
+    collection = db_manager.get_collection("registered_devices")
+    existing = await collection.find_one({})
+    if existing:
+        if existing["device_id"] != device_id:
+            raise HTTPException(
+                status_code=403, 
+                detail="Another device is already registered. Single device policy is enforced."
+            )
+        # Device is already registered; update last seen and name
+        await collection.update_one(
+            {"_id": existing["_id"]},
+            {"$set": {"device_name": device_name, "last_seen": datetime.now(timezone.utc)}}
+        )
+    else:
+        # Register new device
+        await collection.insert_one({
+            "device_id": device_id,
+            "device_name": device_name,
+            "registered_at": datetime.now(timezone.utc),
+            "last_seen": datetime.now(timezone.utc)
+        })
+    return {"status": "success", "message": f"Device {device_id} registered successfully."}
 
 
 @router.post("/admin/reset/circuit/{circuit_name}")
@@ -172,8 +195,8 @@ async def register_device_token(req: DeviceTokenRequest, token: str = Depends(ve
     device_id so a single device never accumulates stale tokens.
     """
     try:
-        from backend.app.db.async_mongo import get_async_db
-        db = await get_async_db()
+        from backend.app.db.database import db_manager
+        db = db_manager.db
         await db["device_tokens"].update_one(
             {"device_id": req.device_id},
             {"$set": {"device_id": req.device_id, "token": req.fcm_token}},
@@ -192,7 +215,7 @@ async def trigger_morning_brief(token: str = Depends(verify_token)):
     input the 5:30 AM scheduler callback uses), broadcasting the result (with
     spoken audio, best-effort) to any open WS clients."""
     from backend.app.core.supervisor_graph import run_supervisor_graph
-    from backend.app.api.ws_routes import broadcast_message, synthesize_proactive_audio_b64
+    from backend.app.api.ws_transport import broadcast_message, synthesize_proactive_audio_b64
 
     session_id = f"alarm-manual-{uuid.uuid4().hex[:8]}"
     result = await run_supervisor_graph(
@@ -215,3 +238,126 @@ async def trigger_morning_brief(token: str = Depends(verify_token)):
         logger.error(f"[trigger_morning_brief] broadcast failed: {e}")
 
     return {"session_id": session_id, "response": response_text, "audio_included": audio_b64 is not None}
+
+
+class SyncItem(BaseModel):
+    id: str
+    type: str  # 'research', 'reminder', 'other'
+    payload_json: str  # structured payload or raw text
+    created_at: int | float
+
+
+class SyncBatchRequest(BaseModel):
+    items: list[SyncItem]
+
+
+@router.post("/sync/batch")
+async def sync_batch(req: SyncBatchRequest, token: str = Depends(verify_token)):
+    """Process a batch of queued offline interactions."""
+    from backend.app.core.supervisor_graph import run_supervisor_graph
+    
+    results = []
+    processed_count = 0
+    
+    for item in req.items:
+        session_id = f"offline-{uuid.uuid4().hex[:8]}"
+        try:
+            if item.type in ("research", "reminder"):
+                user_input = f"Offline Sync Request [{item.type.upper()}]: {item.payload_json}. Please process this offline request and acknowledge."
+            else:
+                user_input = f"Offline Sync Note: {item.payload_json}. Please save this."
+                
+            res = await run_supervisor_graph(
+                session_id=session_id,
+                user_input=user_input
+            )
+            
+            results.append({"id": item.id, "status": "synced", "reply": res.get("response", "")})
+            processed_count += 1
+            
+        except Exception as e:
+            logger.error(f"[Sync] Error processing offline item {item.id}: {e}")
+            results.append({"id": item.id, "status": "failed", "error": str(e)})
+
+    if processed_count > 0:
+        try:
+            from backend.app.api.ws_transport import broadcast_message, synthesize_proactive_audio_b64
+            summary_msg = f"Boss, I've caught up on {processed_count} items from your offline queue."
+            audio_b64 = await synthesize_proactive_audio_b64(summary_msg)
+            
+            payload = {
+                "type": "asta_proactive",
+                "trigger": "offline_sync",
+                "response": summary_msg
+            }
+            if audio_b64:
+                payload["audio_base64"] = audio_b64
+                
+            await broadcast_message(payload)
+        except Exception as e:
+            logger.error(f"[Sync] Broadcast failed: {e}")
+
+    return {"status": "ok", "processed": processed_count, "results": results}
+
+
+class AppUsage(BaseModel):
+    package_name: str
+    minutes: int
+
+class DailyMetricsPayload(BaseModel):
+    dateIso: str
+    topApps: list[AppUsage]
+    totalScreenTimeMinutes: int
+    stepCount: int
+    sleepMinutes: int
+
+
+@router.post("/metrics/daily")
+async def post_daily_metrics(payload: DailyMetricsPayload, token: str = Depends(verify_token)):
+    """Ingest digital wellbeing snapshot from Android app."""
+    try:
+        from backend.app.db.database import db_manager
+        db = db_manager.db
+        collection = db["wellbeing"]
+        
+        doc = payload.model_dump()
+        doc["recorded_at"] = datetime.now(timezone.utc)
+        
+        await collection.insert_one(doc)
+        
+        # Update rolling aggregates in Neo4j
+        try:
+            from backend.app.core.registry import registry
+            db_manager = registry.get("db")
+            if db_manager and hasattr(db_manager, "neo4j_driver"):
+                async with db_manager.neo4j_driver.session() as session:
+                    query = """
+                    MATCH (u:Identity {name: 'KARTHIK'})
+                    CREATE (m:DailyMetrics {
+                        date: $date,
+                        screen_time_minutes: $st,
+                        step_count: $steps,
+                        sleep_minutes: $sleep,
+                        recorded_at: datetime()
+                    })
+                    CREATE (u)-[:RECORDED_ON]->(m)
+                    WITH u
+                    MATCH (u)-[:RECORDED_ON]->(recent:DailyMetrics)
+                    WITH u, recent ORDER BY recent.recorded_at DESC LIMIT 7
+                    WITH u, 
+                         avg(recent.sleep_minutes) AS avg_sleep_7d, 
+                         avg(recent.step_count) AS avg_steps_7d,
+                         avg(recent.screen_time_minutes) AS avg_screen_time_7d
+                    SET u.avg_sleep_7d = avg_sleep_7d,
+                        u.avg_steps_7d = avg_steps_7d,
+                        u.avg_screen_time_7d = avg_screen_time_7d
+                    """
+                    await session.run(query, date=payload.dateIso, st=payload.totalScreenTimeMinutes, steps=payload.stepCount, sleep=payload.sleepMinutes)
+                    logger.info("[Metrics] Neo4j wellbeing aggregates updated")
+        except Exception as neo_err:
+            logger.error(f"[Metrics] Failed to update Neo4j aggregates: {neo_err}")
+            
+        return {"status": "ok"}
+    except Exception as e:
+        logger.error(f"[Metrics] Failed to store metrics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to store metrics")

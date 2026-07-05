@@ -23,8 +23,14 @@ class SessionCache:
         self.session_id = session_id
         self.l1_cache = l1_cache
     
-    async def set_speculative_data(self, key: str, value: Any, ttl: int = 300):
+    async def set_speculative_data(self, key: str, value: Any = None, ttl: int = 300, data: Any = None, trigger_query: str = None):
         """Store speculative/prefetch data"""
+        if value is None:
+            if data is not None or trigger_query is not None:
+                value = {
+                    "data": data,
+                    "trigger_query": trigger_query
+                }
         cache_key = f"speculative:{self.session_id}:{key}"
         await self.l1_cache.set(cache_key, value, ttl=ttl)
     

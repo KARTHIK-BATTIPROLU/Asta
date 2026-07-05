@@ -195,6 +195,38 @@ class TaskRegistry:
             count += sum(1 for t in tasks if not t.done())
         return count
 
+    @classmethod
+    async def shutdown(cls, cancel_timeout: float = 3.0):
+        """
+        Cancel all registered background tasks and await their completion or timeout.
+        """
+        logger.info("[TaskRegistry] Starting shutdown, cancelling all active tasks...")
+        
+        # Collect all active tasks
+        all_tasks = list(cls._global_tasks)
+        for session_tasks in cls._tasks.values():
+            all_tasks.extend(session_tasks)
+            
+        active_tasks = [t for t in all_tasks if not t.done()]
+        if not active_tasks:
+            logger.info("[TaskRegistry] No active tasks to cancel")
+            return
+            
+        logger.info(f"[TaskRegistry] Cancelling {len(active_tasks)} active tasks...")
+        for task in active_tasks:
+            task.cancel()
+            
+        # Await completion
+        try:
+            await asyncio.wait_for(
+                asyncio.gather(*active_tasks, return_exceptions=True),
+                timeout=cancel_timeout
+            )
+            logger.info("[TaskRegistry] All tasks successfully completed/cancelled")
+        except asyncio.TimeoutError:
+            stragglers = [t.get_name() for t in active_tasks if not t.done()]
+            logger.warning(f"[TaskRegistry] Shutdown timed out. {len(stragglers)} tasks still running: {stragglers}")
+
 
 # Singleton instance
 task_registry = TaskRegistry()

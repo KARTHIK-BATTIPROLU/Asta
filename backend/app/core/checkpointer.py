@@ -49,14 +49,15 @@ async def init_checkpointer():
     mongo_uri = (getattr(settings, "MONGO_URI", "") or "").strip()
     if mongo_uri:
         try:
-            from langgraph.checkpoint.mongodb import MongoDBSaver
-            # from_conn_string is a sync context manager; MongoDBSaver still
-            # implements the async (aput/aget_tuple/...) methods ainvoke needs.
-            _mongo_cm = MongoDBSaver.from_conn_string(mongo_uri, db_name=MONGO_CHECKPOINT_DB)
-            saver = _mongo_cm.__enter__()
+            from langgraph.checkpoint.mongodb.aio import AsyncMongoDBSaver
+            # AsyncMongoDBSaver (aio module) implements the async
+            # (aput/aget_tuple/...) methods ainvoke needs; the sync MongoDBSaver
+            # does not, and raises NotImplementedError if used with ainvoke.
+            _mongo_cm = AsyncMongoDBSaver.from_conn_string(mongo_uri, db_name=MONGO_CHECKPOINT_DB)
+            saver = await _mongo_cm.__aenter__()
             _checkpointer = saver
             logger.info(
-                f"Checkpointer: MongoDB (MongoDBSaver) ready — db '{MONGO_CHECKPOINT_DB}'"
+                f"Checkpointer: MongoDB (AsyncMongoDBSaver) ready — db '{MONGO_CHECKPOINT_DB}'"
             )
             return _checkpointer
         except Exception as e:
@@ -92,7 +93,7 @@ async def close_checkpointer():
             _pg_cm = None
     if _mongo_cm is not None:
         try:
-            _mongo_cm.__exit__(None, None, None)
+            await _mongo_cm.__aexit__(None, None, None)
         except Exception as e:
             logger.warning(f"Error closing MongoDB checkpointer: {e}")
         finally:

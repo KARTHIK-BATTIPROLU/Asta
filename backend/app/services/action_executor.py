@@ -339,7 +339,7 @@ class ActionExecutor:
         await self._audit_tool_execution(result_obj)
 
         # 5. Update Speculative Cache Hook (L1.5 Layer)
-        self._update_speculative_cache(result_obj)
+        await self._update_speculative_cache(result_obj)
 
         return result_obj
 
@@ -380,7 +380,7 @@ class ActionExecutor:
 
             # Audit + L1.5 cache
             await self._audit_tool_execution(result_obj)
-            self._update_speculative_cache(result_obj)
+            await self._update_speculative_cache(result_obj)
 
             return result_obj
 
@@ -448,12 +448,12 @@ class ActionExecutor:
         except Exception as e:
             logger.error(f"[ActionExecutor] Failed to audit tool execution: {e}")
 
-    def _update_speculative_cache(self, result: ActionResult):
+    async def _update_speculative_cache(self, result: ActionResult):
         """Injects the tool result into the L1.5 Speculative Cache."""
         try:
             session = l1_manager.get_session(result.session_id)
             if session:
-                session.set_speculative_data(f"tool_result_{result.tool_name}", {
+                await session.set_speculative_data(f"tool_result_{result.tool_name}", {
                     "tool": result.tool_name,
                     "status": result.status,
                     "data": result.result,
@@ -509,7 +509,7 @@ class ActionExecutor:
             )
 
             await self._audit_tool_execution(result_obj)
-            self._update_speculative_cache(result_obj)
+            await self._update_speculative_cache(result_obj)
             return result_obj
 
         except Exception as e:
@@ -528,7 +528,7 @@ class ActionExecutor:
             memory_tag=request.memory_tag,
         )
         await self._audit_tool_execution(result_obj)
-        self._update_speculative_cache(result_obj)
+        await self._update_speculative_cache(result_obj)
         return result_obj
 
 # Global singleton

@@ -152,8 +152,40 @@ class NotionService:
             return []
 
     async def update_task_status(self, page_id: str, status: str) -> bool:
-        """Update task status."""
+        """Update task status and track habit streaks."""
         try:
+            # Check if this is a habit being marked done
+            if status.lower() == "done":
+                page = await self.client.pages.retrieve(page_id=page_id)
+                task_name = _get_title(page["properties"], "Task")
+                task_type = _get_select(page["properties"], "Type")
+                
+                if task_type.lower() == "habit":
+                    # Update Neo4j habit streak
+                    from backend.app.core.registry import registry
+                    db = registry.get("db")
+                    if db and hasattr(db, "neo4j_driver"):
+                        try:
+                            async with db.neo4j_driver.session() as session:
+                                await session.run(
+                                    """
+                                    MERGE (h:Habit {name: $name})
+                                    ON CREATE SET h.current_streak = 1, h.last_completed = date()
+                                    ON MATCH SET h.current_streak = CASE 
+                                        WHEN h.last_completed = date() - duration('P1D') THEN h.current_streak + 1
+                                        WHEN h.last_completed = date() THEN h.current_streak
+                                        ELSE 1 END,
+                                        h.last_completed = date()
+                                    WITH h
+                                    MATCH (u:Identity {name: 'KARTHIK'})
+                                    MERGE (u)-[:HABIT_STREAK]->(h)
+                                    """,
+                                    name=task_name
+                                )
+                                logger.info(f"[Habits] Logged completion for habit: {task_name}")
+                        except Exception as ne:
+                            logger.error(f"[Habits] Failed to update Neo4j streak: {ne}")
+
             await self.client.pages.update(
                 page_id=page_id,
                 properties={"Status": {"select": {"name": status}}}

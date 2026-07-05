@@ -10,7 +10,7 @@ from backend.app.core.llm_factory import llm_router
 from backend.app.services.research_service import research_service
 from backend.app.services.notion_service import notion_service
 from backend.app.services.preferences_service import preferences_service
-from backend.app.db.async_mongo import get_async_db
+from backend.app.db.database import db_manager
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ For each section include:
 
 async def load_yt_topics(state: ContentState) -> ContentState:
     """Load pending YouTube topics from content calendar."""
-    db = await get_async_db()
+    db = db_manager.db
     topics = await db["content_calendar"].find(
         {"platform": "youtube", "status": "pending"}, 
         {"topic": 1}
@@ -198,7 +198,7 @@ async def save_yt_to_notion(state: ContentState) -> ContentState:
     )
     
     if state.get("topic_source") == "calendar":
-        db = await get_async_db()
+        db = db_manager.db
         await db["content_calendar"].update_one(
             {"platform": "youtube", "topic": state.get("topic", "")},
             {"$set": {"status": "created"}}

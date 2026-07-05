@@ -193,8 +193,8 @@ async def _send_fcm_push(title: str, body: str):
             firebase_admin.initialize_app(cred)
 
         # Fetch all stored device tokens from Mongo.
-        from backend.app.db.async_mongo import get_async_db
-        db = await get_async_db()
+        from backend.app.db.database import db_manager
+        db = db_manager.db
         tokens = [doc["token"] async for doc in db["device_tokens"].find({}, {"token": 1})]
 
         if not tokens:
@@ -215,7 +215,7 @@ async def _send_fcm_push(title: str, body: str):
 async def _fire_reminder(page_id: str, task_name: str, scheduled_time: str):
     """APScheduler callback: broadcast a proactive reminder over WS, persist to
     Notion, and send an FCM push (gracefully skipped if not configured)."""
-    from backend.app.api.ws_routes import broadcast_message, synthesize_proactive_audio_b64
+    from backend.app.api.ws_transport import broadcast_message, synthesize_proactive_audio_b64
 
     name = _clean_name(task_name)
     text = f"Boss — {name} — it's {scheduled_time}."
