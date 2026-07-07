@@ -8,6 +8,14 @@ console.log('API URL:', API_BASE_URL);
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 60000,
+  headers: {
+    ...(import.meta.env.VITE_ASTA_API_TOKEN && {
+      Authorization: `Bearer ${import.meta.env.VITE_ASTA_API_TOKEN}`,
+    }),
+    ...(import.meta.env.VITE_ASTA_DEVICE_ID && {
+      'X-Device-Id': import.meta.env.VITE_ASTA_DEVICE_ID,
+    }),
+  },
 });
 
 // Response interceptor for error handling

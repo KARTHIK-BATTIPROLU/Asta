@@ -22,7 +22,9 @@
       "Bash(git status)",
       "Bash(git diff *)",
       "Bash(git log *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(ssh -i \"c:\\\\Users\\\\Karthik\\\\OneDrive\\\\Desktop\\\\ASTA\\\\asta-key.pem\" -o StrictHostKeyChecking=no -o ConnectTimeout=10 ubuntu@98.86.139.178 'bash -s')",
+      "Bash(./gradlew.bat installDebug --console=plain)"
     ],
     "deny": [
       "Bash(rm -rf *)",

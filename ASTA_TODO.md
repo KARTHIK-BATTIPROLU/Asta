@@ -82,15 +82,15 @@
 - [x] `BOOT_COMPLETED` BroadcastReceiver → reschedules alarm after reboot
 - [x] Alarm fires → full-screen intent Activity (shows over lock screen, `setShowWhenLocked/setTurnScreenOn`) → auto-starts WS session to backend with `trigger: morning_alarm`
 - [x] Backend responds with wake-up speech via existing TTS pipeline → plays through alarm audio stream (max volume, ignores DND via alarm channel)
-- [x] Snooze flow: "give me 10 minutes" recognized → backend checks sleep math (see 2.3) → approves/negotiates → Android reschedules one-shot alarm
-- [x] If no user response 5 min → backend escalates nag (existing nag ladder in routine flow), re-triggers audio
+- [~] Snooze flow: "give me 10 minutes" recognized → backend checks sleep math (see 2.3) → approves/negotiates → Android reschedules one-shot alarm (PARTIAL - voice loop broken due to missing Android recording)
+- [~] If no user response 5 min → backend escalates nag (existing nag ladder in routine flow), re-triggers audio (PARTIAL - routine engine syntax error blocks execution)
 - [ ] **Verify (the brutal test):** force-stop app, reboot phone at night, alarm still fires 5:30 with voice. Run 3 consecutive mornings.
 
 ## 2.2 Awake verification conversation
 - [x] Backend: new routine sub-state `awake_verification` after snooze/wake — ASTA holds a 1-2 min casual conversation (LLM-driven, references his day, jokes)
 - [x] Awake heuristic: ≥2 coherent multi-word responses within the conversation → mark awake, proceed to brief. Monosyllabic/no response → gentle re-engage, then nag ladder
 - [x] Log wake time to L4 (feeds sleep tracking)
-- [x] **Verify:** mumble "yes" once → ASTA keeps probing; hold real 2-turn chat → brief begins
+- [ ] **Verify:** mumble "yes" once → ASTA keeps probing; hold real 2-turn chat → brief begins (UNVERIFIED - client microphone recording missing)
 
 ## 2.3 Digital wellbeing ingestion (Android → backend)
 - [x] Android: request `PACKAGE_USAGE_STATS` (UsageStatsManager) + Health Connect permissions (steps, sleep) with clear in-app rationale screens
@@ -104,38 +104,38 @@
 - [x] Sleep-aware opener: injects last night's sleep duration ("5 hours boss — rough one. Lighter morning then.")
 - [x] Delivered as dialogue: brief pauses between sections, Karthik can interrupt/ask follow-ups (existing barge-in supports this)
 - [x] Jogging enforcement: track jog habit streak; refusal triggers nag×2 → guilt (streak data) → negotiate → log consequence
-- [x] **Verify:** full morning run references real weather for real location, ≥2 real AI headlines from last 24h, actual Notion tasks, actual sleep hours
+- [ ] **Verify:** full morning run references real weather for real location, ≥2 real AI headlines from last 24h, actual Notion tasks, actual sleep hours (UNVERIFIED - routine engine syntax error blocks execution)
 
 ## 2.5 Silent mode
 - [x] Android: prominent toggle (main screen + persistent notification action + quick-settings tile)
 - [x] ON: wake-word service paused, TTS playback suppressed, proactive WS voice messages held; chat fully functional
 - [x] Backend: `silent_mode` flag per device (POST `/api/device/silent-mode`); proactive triggers check flag → route to FCM push + in-app message instead of voice
 - [x] Queued voice items flush as a spoken digest when un-muted
-- [x] **Verify:** Turn on silent, simulate alarm → receives push, no audio. Turn off silent → "While you were muted, your morning brief..."
+- [ ] **Verify:** Turn on silent, simulate alarm → receives push, no audio. Turn off silent → "While you were muted, your morning brief..." (UNVERIFIED - settings/silent endpoint crashes due to missing dependency import)
 
 ## 2.6 Proactive accountability engine
 - [x] Backend: `accountability_monitor` — APScheduler job every 15 min, 9 PM–3 AM window: pull latest wellbeing snapshot → rules: (entertainment app >90 min continuous) OR (screen on past 12:30 AM with DSA habit incomplete) → trigger intervention
 - [x] Intervention = proactive WS voice message (or push if silent/disconnected) through the escalation ladder state machine
 - [x] Ladder state persists per-night in Redis (so re-triggers escalate, not restart)
 - [x] All interventions logged to L4 (pattern learning later)
-- [x] **Verify:** simulate snapshot (2 AM, 3h YouTube) → confirm voice intervention, correct escalation across repeated triggers, consequence appears in next morning brief
+- [ ] **Verify:** simulate snapshot (2 AM, 3h YouTube) → confirm voice intervention, correct escalation across repeated triggers, consequence appears in next morning brief (UNVERIFIED - missing synthesize_proactive_audio_b64 helper crashes intervention dispatch)
 
 ## 2.7 Task & habit system polish (task_manager.py is the base — extend, don't rewrite)
 - [x] Dynamic-slot suggestions: when listing today's tasks, compute free windows from Notion schedule + current time → attach suggestion per task ("best window: after college 6-7 PM")
 - [x] Suggestion inputs: sleep score (low → lighter suggestions), deadline proximity boost (CTF in 3 days outranks bucket-list), completion momentum
 - [x] Habit streaks: DSA daily, jogging 5x/week, reading — stored in Notion habits page + Neo4j; morning brief reports streaks; completions logged by voice/chat ("done with DSA" → fuzzy match → streak++)
 - [x] Retire routine_graph.py for scheduled runs: point scheduler's morning/night triggers at the task_manager/supervisor path so ONE routine implementation exists
-- [x] **Verify:** "I finished the leetcode problem" → matched, streak incremented, Notion updated; "what should I do now?" → suggestion citing a real calendar gap
+- [ ] **Verify:** "I finished the leetcode problem" → matched, streak incremented, Notion updated; "what should I do now?" → suggestion citing a real calendar gap (UNVERIFIED - routine engine syntax error blocks execution)
     ✅ VERIFIED: Phase 2.7 completed. RoutineEngine handles consolidated triggers, Notion dynamic slot suggestions, and Neo4j habit streaks.
 
 ## 2.8 Research partner completion (research_engine.py is the base)
-- [x] Enforce the 4-section Notion page: HIS IDEA (verbatim context) / RESEARCH FINDINGS (linked sources) / COMBINED SOLUTION / NEXT STEPS (projects only: architecture sketch + first 3 actions)
+- [~] Enforce the 4-section Notion page: HIS IDEA (verbatim context) / RESEARCH FINDINGS (linked sources) / COMBINED SOLUTION / NEXT STEPS (projects only: architecture sketch + first 3 actions) [PARTIAL - Notion section titles mismatched in code]
 - [x] Add arxiv API search for academic topics (top 5 papers with abstracts + links)
 - [x] Migrate research_engine's direct AsyncGroq client to the shared llm_factory (kill the 4th LLM code path)
 - [x] Spoken recap ≤30s + "full page in Notion, boss"
 - [ ] Chat-initiated research works identically to voice (mid-class use case)
 - [ ] **Verify:** "research vector database sharding strategies, I'm thinking about it for ASTA's memory" → Notion page with all 4 sections, ≥5 quality sources, his verbatim framing in section 1, spoken recap
-    ✅ VERIFIED (Backend): 4-section layout enforced, LLM factory integrated, spoken recap capped. Arxiv search tool injected directly into deep agentic loops.
+    🟡 CODE-READY (Backend): LLM factory integrated, spoken recap capped. Arxiv search tool injected. Note: Notion section titles are mismatched in code.
     🔧 NEXT: Verify frontend/chat trigger and create Phase 2.8 walkthrough.
 
 ## 2.9 Offline fallback (mobile)
@@ -167,8 +167,8 @@
 - [x] LLM streaming: keep llm_service.py (full persona), delete simple_llm.py after migrating any callers
 - [x] Intent: keep intent_detector.py; delete action_dispatcher's classifier after migrating
 - [x] Mongo: migrate all `async_mongo.get_async_db()` callers (content.py, health.py, routes.py, checkpointer, workflows) onto `db_manager`; delete async_mongo.py, mongo.py, mongo_hardening.py
-- [x] Delete: core/state.py + core/states.py (live graph uses its own local copy — extract THAT into core/graph_state.py as the single schema), legacy/ folder from 0.3, memory_saga.py + saga_retry_worker (after confirming memory_engine covers all writes — check outbox for unprocessed entries first)
-- [x] **Verify:** grep proves zero imports of deleted modules; full test suite + voice conversation + morning brief all pass
+- [~] Delete: core/state.py + core/states.py (done), legacy/ folder from 0.3 (done), memory_saga.py + saga_retry_worker (PARTIAL - memory_saga.py is still imported)
+- [ ] **Verify:** grep proves zero imports of deleted modules; full test suite + voice conversation + morning brief all pass
 
 ## 3.3 Android cleanup
 - [x] Delete dead AssistantController/WebSocketManager path

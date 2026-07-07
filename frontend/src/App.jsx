@@ -4,7 +4,9 @@ import './App.css';
 
 // CSP-compliant WebSocket URL configuration
 const WS_TOKEN = import.meta.env.VITE_ASTA_API_TOKEN || "";
-const WS_BASE_URL = `ws://localhost:8000/ws/conversation?token=${encodeURIComponent(WS_TOKEN)}`;
+const WS_DEVICE_ID = import.meta.env.VITE_ASTA_DEVICE_ID || "";
+const WS_HOST = import.meta.env.VITE_ASTA_WS_HOST || "ws://localhost:8000";
+const WS_BASE_URL = `${WS_HOST}/ws/conversation?token=${encodeURIComponent(WS_TOKEN)}&device_id=${encodeURIComponent(WS_DEVICE_ID)}`;
 
 // TASK 1: DEFINE STATES
 const STATE = {
