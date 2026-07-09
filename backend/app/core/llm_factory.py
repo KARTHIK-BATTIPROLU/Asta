@@ -6,71 +6,204 @@ Used by the supervisor graph and workflow nodes so model selection and
 fallback logic live in ONE place.
 """
 import logging
-from typing import Optional
-
-from groq import AsyncGroq
-
+import asyncio
+from typing import Optional, Dict, Any, List
+import redis.asyncio as aioredis
+from pydantic import BaseModel
 from backend.app.config import settings
 
 logger = logging.getLogger("LLMFactory")
 
-# Task → Groq model. Fast model for classification, larger for generation.
-_GROQ_MODELS = {
-    "classify": "llama-3.1-8b-instant",
-    "quick": "llama-3.1-8b-instant",
-    "generate": "llama-3.3-70b-versatile",
-    "research_synthesis": "llama-3.3-70b-versatile",
-    "post_generation": "llama-3.3-70b-versatile",
-    "script_generation": "llama-3.3-70b-versatile",
-    "content_generation": "llama-3.3-70b-versatile",
-    "default": "llama-3.1-8b-instant",
+class LLMResult(BaseModel):
+    text: str
+    total_tokens: int = 0
+    raw_response: Any = None
+
+class QuotaLedger:
+    def __init__(self, redis_url: str):
+        self.redis = aioredis.from_url(redis_url)
+        
+    async def spend(self, provider: str, tokens: int):
+        try:
+            await self.redis.incrby(f"quota:{provider}:tokens_today", tokens)
+        except Exception as e:
+            logger.warning(f"Failed to update quota ledger: {e}")
+        
+    async def headroom(self, provider: str) -> float:
+        # Simplistic implementation: hardcoded daily limits
+        limits = {
+            "groq": 500000,
+            "gemini": 1000000,
+            "ollama": float("inf")
+        }
+        try:
+            spent = await self.redis.get(f"quota:{provider}:tokens_today")
+            spent = int(spent) if spent else 0
+        except Exception as e:
+            logger.warning(f"Failed to read quota ledger: {e}")
+            spent = 0
+            
+        limit = limits.get(provider, 100000)
+        return max(0.0, 1.0 - (spent / limit))
+
+class CircuitBreaker:
+    def __init__(self):
+        self.open_until = 0.0
+
+    @property
+    def open(self):
+        import time
+        return time.time() < self.open_until
+
+    def trip(self, cooldown: int = 60):
+        import time
+        self.open_until = time.time() + cooldown
+
+class Provider:
+    def __init__(self, name: str):
+        self.name = name
+        self.breaker = CircuitBreaker()
+
+    async def chat(self, model: str, messages: list, tools=None, **kw) -> LLMResult:
+        raise NotImplementedError
+
+    async def stt(self, model: str, audio: bytes, **kw) -> str:
+        raise NotImplementedError
+
+class GroqProvider(Provider):
+    def __init__(self):
+        super().__init__("groq")
+        if settings.GROQ_API_KEY:
+            from groq import AsyncGroq
+            self.client = AsyncGroq(api_key=settings.GROQ_API_KEY)
+        else:
+            self.client = None
+
+    async def stt(self, model: str, audio: bytes, **kw) -> str:
+        if not self.client:
+            raise Exception("Groq not configured")
+        import io
+        file_obj = ("audio.wav", io.BytesIO(audio), "audio/wav")
+        resp = await self.client.audio.transcriptions.create(
+            file=file_obj,
+            model=model,
+            prompt=kw.get("prompt", ""),
+            language=kw.get("language")
+        )
+        return resp.text
+
+    async def chat(self, model: str, messages: list, tools=None, **kw) -> LLMResult:
+        if not self.client:
+            raise Exception("Groq not configured")
+        resp = await self.client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=kw.get("temperature", 0.7),
+            max_tokens=kw.get("max_tokens", 1024),
+        )
+        text = resp.choices[0].message.content or ""
+        tokens = resp.usage.total_tokens if resp.usage else int(len(text)/4)
+        return LLMResult(text=text.strip(), total_tokens=tokens, raw_response=resp)
+
+class GeminiProvider(Provider):
+    def __init__(self):
+        super().__init__("gemini")
+        if settings.GEMINI_API_KEY:
+            import google.generativeai as genai
+            genai.configure(api_key=settings.GEMINI_API_KEY)
+            self.configured = True
+        else:
+            self.configured = False
+
+    async def chat(self, model: str, messages: list, tools=None, **kw) -> LLMResult:
+        if not self.configured:
+            raise Exception("Gemini not configured")
+        import google.generativeai as genai
+        gemini_model = genai.GenerativeModel(model)
+        
+        sys_msg = next((m["content"] for m in messages if m["role"] == "system"), "")
+        user_msgs = [m["content"] for m in messages if m["role"] == "user"]
+        prompt = f"{sys_msg}\n\n" + "\n".join(user_msgs)
+        
+        resp = await asyncio.to_thread(gemini_model.generate_content, prompt)
+        text = resp.text or ""
+        tokens = int(len(text)/4) 
+        return LLMResult(text=text.strip(), total_tokens=tokens, raw_response=resp)
+
+    async def stt(self, model: str, audio: bytes, **kw) -> str:
+        if not self.configured:
+            raise Exception("Gemini not configured")
+        import google.generativeai as genai
+        gemini_model = genai.GenerativeModel("gemini-1.5-flash") # best for audio
+        prompt = kw.get("prompt", "Transcribe this audio")
+        # Audio bytes upload to Gemini needs specific handling; stubbed for fallback
+        # In a real impl, we'd upload blob or pass inline data.
+        resp = await asyncio.to_thread(
+            gemini_model.generate_content,
+            [prompt, {"mime_type": "audio/wav", "data": audio}]
+        )
+        return resp.text
+
+CHAINS = {
+    "realtime_chat": [("groq", "llama-3.3-70b-versatile"), ("gemini", "gemini-2.5-flash")],
+    "stt": [("groq", "whisper-large-v3-turbo")],
+    "extraction": [("groq", "llama-3.3-70b-versatile"), ("gemini", "gemini-2.5-flash")],
+    "default": [("groq", "llama-3.1-8b-instant"), ("gemini", "gemini-2.5-flash")]
 }
 
-_groq_client: Optional[AsyncGroq] = None
+SHED_FLOOR = {
+    "realtime_chat": 0.2,
+    "stt": 0.1,
+    "extraction": 0.5,
+    "default": 0.0
+}
 
+class Router:
+    def __init__(self, redis_url: str):
+        self.ledger = QuotaLedger(redis_url)
+        self.providers = {
+            "groq": GroqProvider(),
+            "gemini": GeminiProvider()
+        }
 
-def _get_groq() -> Optional[AsyncGroq]:
-    """Lazily build the Groq client (None if no key configured)."""
-    global _groq_client
-    if _groq_client is None and settings.GROQ_API_KEY:
-        _groq_client = AsyncGroq(api_key=settings.GROQ_API_KEY)
-    return _groq_client
+    async def run(self, task: str, messages: list = None, audio: bytes = None, **kw) -> Any:
+        chain = CHAINS.get(task, CHAINS["default"])
+        shed_floor = SHED_FLOOR.get(task, 0.0)
 
+        for prov_name, model in chain:
+            prov = self.providers.get(prov_name)
+            if not prov: continue
+            
+            if prov.breaker.open: continue
+            
+            headroom = await self.ledger.headroom(prov.name)
+            if headroom < shed_floor:
+                logger.warning(f"Shedding load for {task} on {prov.name} (headroom {headroom:.2f} < {shed_floor})")
+                continue
 
-async def _try_groq(system: str, user: str, task: str, temperature: float, max_tokens: int) -> Optional[str]:
-    client = _get_groq()
-    if not client:
-        return None
-    model = _GROQ_MODELS.get(task, _GROQ_MODELS["default"])
-    resp = await client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
-    return (resp.choices[0].message.content or "").strip()
+            try:
+                if audio is not None and task == "stt":
+                    text = await prov.stt(model, audio, **kw)
+                    # Rough token estimation for audio: seconds * 2
+                    await self.ledger.spend(prov.name, 100) # placeholder
+                    return text
+                else:
+                    r = await prov.chat(model, messages or [], **kw)
+                    await self.ledger.spend(prov.name, r.total_tokens)
+                    return r
+            except Exception as e:
+                err_str = str(e).lower()
+                if "rate limit" in err_str or "429" in err_str:
+                    logger.warning(f"Rate limited on {prov.name}. Tripping breaker for 60s.")
+                    prov.breaker.trip(cooldown=60)
+                else:
+                    logger.warning(f"Provider {prov.name} failed: {e}. Tripping breaker for 30s.")
+                    prov.breaker.trip(cooldown=30)
+                continue
+                
+        raise Exception("All providers exhausted or rate-limited.")
 
-
-async def _try_gemini(system: str, user: str) -> Optional[str]:
-    """Fallback to Gemini Flash when Groq is unavailable."""
-    if not settings.GEMINI_API_KEY:
-        return None
-    try:
-        import google.generativeai as genai
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-2.5-flash")
-        # Gemini has no separate system role; prepend it.
-        prompt = f"{system}\n\n{user}" if system else user
-        import asyncio
-        resp = await asyncio.to_thread(model.generate_content, prompt)
-        return (resp.text or "").strip()
-    except Exception as e:
-        logger.error(f"[LLMFactory] Gemini fallback failed: {e}")
-        return None
-
+router = Router(settings.REDIS_URL or "redis://localhost:6379/0")
 
 async def acomplete(
     system: str,
@@ -79,61 +212,13 @@ async def acomplete(
     temperature: float = 0.7,
     max_tokens: int = 1024,
 ) -> str:
-    """
-    Get a completion. Tries Groq first, then Gemini.
-    Never raises — returns a safe message on total failure.
-    """
-    # 1. Primary: Groq
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user}
+    ]
     try:
-        out = await _try_groq(system, user, task, temperature, max_tokens)
-        if out:
-            return out
+        res = await router.run(task, messages, temperature=temperature, max_tokens=max_tokens)
+        return res.text
     except Exception as e:
-        logger.warning(f"[LLMFactory] Groq failed ({task}): {e} — trying fallback")
-
-    # 2. Fallback: Gemini
-    out = await _try_gemini(system, user)
-    if out:
-        return out
-
-    logger.error("[LLMFactory] All providers failed.")
-    return "Sorry boss, my language models are unreachable right now."
-
-
-# Convenience export
-llm = acomplete
-
-
-# Task types that need the larger "generate" model; everything else uses the
-# fast 8b-instant model (mirrors the old llm_router model selection).
-_GENERATE_TASK_TYPES = {
-    "post_generation", "research_synthesis", "script_generation", "content_generation",
-}
-
-
-class _LLMRouterCompat:
-    """Drop-in replacement for the old `llm_router` global, backed by acomplete.
-
-    Lets workflow nodes keep their `llm_router.invoke_with_system(task_type, system, user)`
-    call shape while routing through the single llm_factory provider chain.
-    """
-
-    async def invoke_with_system(self, task_type: str, system_prompt: str, user_message: str) -> str:
-        task = "generate" if task_type in _GENERATE_TASK_TYPES else "default"
-        return await acomplete(system_prompt, user_message, task=task, max_tokens=1500)
-
-    async def invoke(self, task_type: str, messages: list) -> dict:
-        system_prompt = ""
-        user_parts = []
-        for m in messages:
-            if m.get("role") == "system":
-                system_prompt = m.get("content", "")
-            else:
-                user_parts.append(m.get("content", ""))
-        task = "generate" if task_type in _GENERATE_TASK_TYPES else "default"
-        content = await acomplete(system_prompt, "\n".join(user_parts), task=task, max_tokens=1000)
-        return {"content": content}
-
-
-# Back-compat global for workflows migrating off core.llm_router.
-llm_router = _LLMRouterCompat()
+        logger.error(f"[LLMFactory] {e}")
+        return "Sorry boss, my language models are unreachable right now."

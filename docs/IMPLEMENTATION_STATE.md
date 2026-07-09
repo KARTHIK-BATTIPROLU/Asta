@@ -1,8 +1,9 @@
 # ASTA IMPLEMENTATION STATE — updated 2026-07-09T19:02:00Z by session 1
 ## PHASE BOARD
 Phase 0: DONE
-Phase 1: IN-PROGRESS
-Phase 2–10: NOT-STARTED
+Phase 1: DONE
+Phase 2: IN-PROGRESS
+Phase 3–10: NOT-STARTED
 
 ## STATUS MATRIX
 | Component | Guide ref | Status | Reason / evidence (file:line) | Disposition |
@@ -15,9 +16,9 @@ Phase 2–10: NOT-STARTED
 | memory_saga.py | I.3 | ATTIC | Imports removed, file deleted to attic | Fixed in Phase 0 |
 | .env.template | I.3 | FIXED | Missing required config keys added | Fixed in Phase 0 |
 | AstaNetworkClient.kt / ConfigManager.java | I.3 | FIXED | Ngrok fallbacks purged, using BuildConfig | Fixed in Phase 0 |
-| LLM router | II | PARTIAL | `backend/app/core/llm_factory.py:4` exists but no quota ledger, no capability chains, single provider hardcoded | Rebuild in Phase 0/II |
-| Pipecat Voice Pipeline | III.2 | MISSING | No `backend/app/voice/pipeline.py` or Pipecat integration | Build in Phase 1 |
-| Reflex Processor | III.5 | MISSING | No filler pool or reflex layer | Build in Phase 1 |
+| LLM router | II | DONE | `backend/app/core/llm_factory.py` implements Router, QuotaLedger, Provider. | Built in Phase 1 |
+| Pipecat Voice Pipeline | III.2 | DONE | `backend/app/voice/pipeline.py` orchestrates Pipecat pipeline | Built in Phase 1 |
+| Reflex Processor | III.5 | DONE | `backend/app/voice/reflex.py` intercepts text and emits TTS | Built in Phase 1 |
 | livekit-wakeword | IV.2 | MISSING | No `configs/asta.yaml` | Build in Phase 2 |
 | Android Wake Word bug | IV.3 | PARTIAL | OpenWakeWord model integrated but feature normalisation buggy | Fix in Phase 2 |
 | Session Extraction | V.4 | MISSING | No extraction call on session end; uses old transcript methods | Build in Phase 3 |
@@ -40,7 +41,7 @@ Phase 2–10: NOT-STARTED
 - None yet.
 
 ## NEXT STEP (exact)
-- Phase 1: Voice & Persona (Part III) — Integrate Pipecat pipeline, LLM Router, and Reflex processor.
+- Phase 2: Wake Word "Hey ASTA" (Part IV) — Train models and integrate openWakeWord.
 
 ## VERIFY SNAPSHOT
-- make verify: P0 ✅
+- make verify: P1 ✅

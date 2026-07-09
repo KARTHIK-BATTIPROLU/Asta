@@ -51,3 +51,5 @@ langgraph-checkpoint-mongodb==0.4.0
 
 # Firebase Admin SDK (FCM push notifications — gracefully skipped until service-account.json is present)
 firebase-admin
+pipecat-ai
+edge-tts
