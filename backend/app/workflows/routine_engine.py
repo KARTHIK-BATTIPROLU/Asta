@@ -115,7 +115,7 @@ class RoutineEngine:
             else:
                 block_data = res.result
                 context_blocks.append(f"[{step_name}]\n{block_data}")
-                if step_name in ["CALENDAR_TODAY", "NOTION_TASKS"]:
+
         habit_streaks = ""
         try:
             db = registry.get("db")
