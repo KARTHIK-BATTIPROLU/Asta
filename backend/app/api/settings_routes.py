@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 import logging
 from backend.app.core.registry import registry
-from backend.app.api.dependencies import get_api_key
+from backend.app.auth.token_auth import verify_bearer_and_device
 
 router = APIRouter()
 logger = logging.getLogger("SettingsRoutes")
@@ -14,7 +14,7 @@ class SilentModePayload(BaseModel):
 @router.post("/settings/silent")
 async def toggle_silent_mode(
     payload: SilentModePayload,
-    _=Depends(get_api_key)
+    _=Depends(verify_bearer_and_device)
 ):
     """
     Sets the silent mode flag for a session/identity in Redis.
