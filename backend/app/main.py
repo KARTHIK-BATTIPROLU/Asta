@@ -341,12 +341,7 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"SessionManager startup failed: {e}")
 
-    # Start Saga Retry Worker (recovers partially-failed memory writes)
-    try:
-        from memory.memory_saga import saga_retry_worker
-        await saga_retry_worker.start()
-    except Exception as e:
-        logger.warning(f"SagaRetryWorker startup failed: {e}")
+    # Saga Retry Worker removed in Phase 0
 
     # Initialize Wake Word Detection Service
     try:
@@ -512,17 +507,7 @@ async def shutdown_event():
     except Exception as e:
         logger.warning(f"Embedding service shutdown error: {e}")
 
-    try:
-        from memory.memory_saga import saga_retry_worker
-        # Drain pending sagas to prevent stuck writes on hard kill
-        try:
-            import asyncio
-            await asyncio.wait_for(saga_retry_worker.drain(), timeout=5.0)
-        except asyncio.TimeoutError:
-            logger.warning("Saga drain timed out during shutdown.")
-        await saga_retry_worker.stop()
-    except Exception:
-        pass
+    # Saga drain removed in Phase 0
     try:
         from backend.app.services.session_manager import SessionManager
         await SessionManager.stop_workers()

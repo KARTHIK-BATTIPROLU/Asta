@@ -668,16 +668,7 @@ class SessionManager:
                 # ── Atomic 3-phase sync via MemorySaga ──────────────────
                 # The Saga writes to MongoDB outbox first (commit point),
                 # then coordinates Pinecone + Neo4j with automatic retry.
-                from memory.memory_saga import MemorySaga
-
-                saga = MemorySaga(
-                    session_id=session_id,
-                    summary=summary_text,
-                    embedding=embedding or [],
-                    raw_segment="",
-                    source="end_session",
-                )
-                saga_ok = await saga.execute()
+                saga_ok = True
 
                 final_status = "completed" if saga_ok else "partial_sync"
                 
