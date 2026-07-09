@@ -219,8 +219,8 @@ async def conversation_ws(websocket: WebSocket):
                     # Send bytes to streaming engine if active
                     if not ctx.stt_stream:
                         ctx.stt_stream = True # Lock to prevent multiple creations immediately
-                        ctx.stt_connect_task = asyncio.create_task(start_ctx.stt_stream())
-                    elif ctx.ctx.stt_stream_ready and isinstance(ctx.stt_stream, DeepgramStreamService):
+                        ctx.stt_connect_task = asyncio.create_task(start_stt_stream())
+                    elif ctx.stt_stream_ready and isinstance(ctx.stt_stream, DeepgramStreamService):
                         asyncio.create_task(ctx.stt_stream.send_audio(message["bytes"]))
 
             elif "text" in message:
@@ -324,8 +324,8 @@ async def conversation_ws(websocket: WebSocket):
                     try:
                         if isinstance(ctx.stt_stream, DeepgramStreamService) and ctx.stt_stream.is_stream_active:
                             asyncio.create_task(ctx.stt_stream.stop())
-                            ctx.ctx.stt_stream = None
-                            ctx.ctx.ctx.stt_stream_ready = False
+                            ctx.stt_stream = None
+                            ctx.stt_stream_ready = False
                         if ctx.client_active:
                             await websocket.send_json({"type": "status", "status": "idle"})
                     except Exception:
@@ -361,13 +361,13 @@ async def conversation_ws(websocket: WebSocket):
                     
                     if ctx.stt_connect_task and not ctx.stt_connect_task.done():
                         ctx.stt_connect_task.cancel()
-                        ctx.ctx.stt_connect_task = None
+                        ctx.stt_connect_task = None
 
                     if isinstance(ctx.stt_stream, DeepgramStreamService) and ctx.stt_stream.is_stream_active:
                         asyncio.create_task(ctx.stt_stream.stop())
                         
-                    ctx.ctx.stt_stream = None
-                    ctx.ctx.ctx.stt_stream_ready = False
+                    ctx.stt_stream = None
+                    ctx.stt_stream_ready = False
                         
                     # Clear any queue residues if needed
                     audio_buffer = bytearray()
@@ -458,7 +458,7 @@ async def conversation_ws(websocket: WebSocket):
     except Exception as e:
         logger.error(f"[WS] Critical Connection Error: {e}")
     finally:
-        ctx.ctx.client_active = False # Ensure no residual tasks push messages
+        ctx.client_active = False # Ensure no residual tasks push messages
         _active_connections.discard(websocket)
         if ctx.session_context["turn_task"] and not ctx.session_context["turn_task"].done():
             ctx.session_context["turn_task"].cancel()
@@ -469,8 +469,8 @@ async def conversation_ws(websocket: WebSocket):
         
         if isinstance(ctx.stt_stream, DeepgramStreamService) and ctx.stt_stream.is_stream_active:
             asyncio.create_task(ctx.stt_stream.stop())
-            ctx.ctx.stt_stream = None
-            ctx.ctx.ctx.stt_stream_ready = False
+            ctx.stt_stream = None
+            ctx.stt_stream_ready = False
             
         if session_id:
             # Cancel all tracked tasks for this session
