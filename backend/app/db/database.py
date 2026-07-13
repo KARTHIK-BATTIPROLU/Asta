@@ -137,6 +137,32 @@ class DatabaseManager:
                 )
 
             logger.info("[DatabaseManager] Session indexes ensured.")
+            
+            # Phase 3 Collections
+            outbox = self.db["outbox"]
+            await outbox.create_index([("status", ASCENDING), ("ts", ASCENDING)], name="outbox_status_ts_idx")
+            
+            events = self.db["events"]
+            await events.create_index([("ts", ASCENDING)], name="events_ts_idx")
+            
+            insights = self.db["insights"]
+            await insights.create_index([("session_id", ASCENDING)], name="insights_session_idx")
+            
+            # Phase 5 Collections
+            reminders = self.db["reminders"]
+            await reminders.create_index([("dedupe_key", ASCENDING)], unique=True, name="reminders_dedupe_idx")
+            await reminders.create_index([("state", ASCENDING), ("due_ts", ASCENDING)], name="reminders_state_due_idx")
+            
+            # Phase 6 Collections
+            await self.db.memories.create_index("user_id")
+            await self.db.habits.create_index("name", unique=True)
+            await self.db.job_runs.create_index("job_id")
+            await self.db.offline_sync.create_index("client_id", unique=True)
+            
+            job_runs = self.db["job_runs"]
+            await job_runs.create_index([("job_id", ASCENDING), ("logical_date", ASCENDING)], unique=True, name="job_runs_id_date_idx")
+            
+            logger.info("[DatabaseManager] Phase 3-6 indexes ensured.")
         except Exception as e:
             logger.error(f"[DatabaseManager] Index creation failed: {e}")
 

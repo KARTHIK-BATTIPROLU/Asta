@@ -25,6 +25,7 @@ async def broadcast_message(payload: dict):
 
 @router.websocket("/ws/conversation")
 async def conversation_ws(websocket: WebSocket):
+    trigger = websocket.query_params.get("trigger", "manual")
     if not await verify_ws_token_and_device(websocket):
         await websocket.close(code=1008)
         logger.warning("[WS] Unauthorized connection rejected (invalid token or device)")
@@ -45,7 +46,7 @@ async def conversation_ws(websocket: WebSocket):
             )
         )
         
-        pipeline = build_pipeline(transport)
+        pipeline = build_pipeline(transport, trigger=trigger)
         task = PipelineTask(pipeline)
         
         logger.info("[WS] Starting Pipecat PipelineTask")

@@ -102,6 +102,11 @@ app.include_router(content_router, prefix="/api")
 app.include_router(health_router, prefix="/api")
 from backend.app.api import settings_routes
 app.include_router(settings_routes.router, prefix="/api", tags=["settings"])
+from backend.app.api import ws_transport
+from backend.app.api import sync_routes
+
+# Note: WS routes are registered inside ws_transport
+app.include_router(sync_routes.router, prefix="/api/v1", tags=["sync"])
 
 
 @app.get("/api/me")
