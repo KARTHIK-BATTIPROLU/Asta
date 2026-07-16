@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, Bot, User, Loader2, StopCircle, Volume2, VolumeX, Activity, PauseCircle, PlayCircle, Send, Bell, HelpCircle } from 'lucide-react';
 import './App.css';
+import JarvisOrb from './orb/JarvisOrb';
 
 // CSP-compliant WebSocket URL configuration
 const WS_TOKEN = import.meta.env.VITE_ASTA_API_TOKEN || "";
@@ -89,6 +90,15 @@ function App() {
     if (newState !== STATE.PROCESSING) {
         isProcessingRef.current = false;
     }
+
+    // ASTA SEAM WIRING
+    if (orbRef.current) {
+        let mapped = 'idle';
+        if (newState === STATE.LISTENING) mapped = 'listening';
+        else if (newState === STATE.THINKING || newState === STATE.PROCESSING) mapped = 'thinking';
+        else if (newState === STATE.RESPONDING) mapped = 'speaking';
+        orbRef.current.setAstaState(mapped);
+    }
   };
 
   const [messages, setMessages] = useState([
@@ -113,6 +123,7 @@ function App() {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const wsRef = useRef(null); 
+  const orbRef = useRef(null); 
   const sessionIdRef = useRef((() => {
     const stored = localStorage.getItem('asta_session_id');
     if (stored) return stored;
@@ -964,141 +975,146 @@ function App() {
   };
 
   return (
-    <div className="app-container">
-      <header className="header">
-        <h1>
-           <Bot size={28} style={{ marginRight: '10px' }} /> 
-           ASTA
-        </h1>
-        <div className="controls">
-            <div className="audio-meter" title="Live microphone level">
-                <Activity size={16} />
-                <div className="audio-meter-track">
-                  <div className="audio-meter-fill" style={{ width: `${Math.round(micLevel * 100)}%` }}></div>
+    <>
+      <JarvisOrb ref={orbRef} />
+      <div className="hud-layer">
+        <header className="header">
+          <h1>
+            <Bot size={28} style={{ marginRight: '10px' }} /> 
+            ASTA
+          </h1>
+          <div className="controls">
+              <div className="audio-meter" title="Live microphone level">
+                  <Activity size={16} />
+                  <div className="audio-meter-track">
+                    <div className="audio-meter-fill" style={{ width: `${Math.round(micLevel * 100)}%` }}></div>
+                  </div>
+              </div>
+
+              <div className="vad-calibration" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', background: 'rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '4px' }}>
+                  <span title="VAD Sensitivity. 1 = High Sensitivity, 4 = Require loud speaking">Gate: {vadSensitivity}x</span>
+                  <input 
+                    type="range" 
+                    min="1" max="4" step="0.5" 
+                    value={vadSensitivity} 
+                    onChange={(e) => setVadSensitivity(parseFloat(e.target.value))} 
+                    style={{ width: '80px', accentColor: '#4f46e5' }}
+                  />
+              </div>
+
+              <div className="status-indicator">
+                  <div className={`status-dot ${status === 'Error' ? 'error' : ''}`}></div>
+                  {status}
+              </div>
+              
+              <button 
+                  className={`icon-button ${voiceEnabled ? 'active' : ''}`}
+                  onClick={() => setVoiceEnabled(!voiceEnabled)}
+                  title={voiceEnabled ? "Mute Voice Response" : "Enable Voice Response"}
+                  type="button"
+              >
+                  {voiceEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
+              </button>
+          </div>
+        </header>
+
+        <div className="hud-content-wrapper">
+          <div className="chat-window">
+            {messages.map((msg, idx) => (
+              <div key={idx} className={`message ${msg.role} ${msg.isTemp ? 'temp' : ''} ${msg.proactive ? 'proactive' : ''} ${msg.content.includes("couldn't hear") ? 'error-msg' : ''}`}>
+                {msg.role === 'assistant' && (
+                    <div className="avatar">
+                        {msg.proactive ? <Bell size={20} color="white" /> : <Bot size={20} color="white" />}
+                    </div>
+                )}
+
+                <div className="bubble">
+                  {msg.role === 'assistant' ? cleanMessage(msg.content) : msg.content}
+
+                  {msg.taskData && Object.keys(msg.taskData).length > 0 && (
+                    <div className="task-card">
+                      {msg.taskData.topic && <div><strong>Topic:</strong> {msg.taskData.topic}</div>}
+                      {msg.taskData.platform && <div><strong>Platform:</strong> {msg.taskData.platform}</div>}
+                      {typeof msg.taskData.images === 'number' && msg.taskData.images > 0 && (
+                        <div><strong>Images:</strong> {msg.taskData.images}</div>
+                      )}
+                      {msg.taskData.notion_page_id && (
+                        <a href={`https://www.notion.so/${msg.taskData.notion_page_id.replace(/-/g, '')}`} target="_blank" rel="noopener noreferrer">
+                          Open in Notion
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {msg.awaitingClarification && (
+                    <div className="clarification-badge">
+                      <HelpCircle size={14} /> Waiting for your answer
+                    </div>
+                  )}
                 </div>
-            </div>
 
-            <div className="vad-calibration" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', background: 'rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '4px' }}>
-                <span title="VAD Sensitivity. 1 = High Sensitivity, 4 = Require loud speaking">Gate: {vadSensitivity}x</span>
-                <input 
-                  type="range" 
-                  min="1" max="4" step="0.5" 
-                  value={vadSensitivity} 
-                  onChange={(e) => setVadSensitivity(parseFloat(e.target.value))} 
-                  style={{ width: '80px', accentColor: '#4f46e5' }}
-                />
-            </div>
-
-            <div className="status-indicator">
-                <div className={`status-dot ${status === 'Error' ? 'error' : ''}`}></div>
-                {status}
-            </div>
+                {msg.role === 'user' && (
+                    <div className="avatar">
+                        <User size={20} color="white" />
+                    </div>
+                )}
+              </div>
+            ))}
             
+            {loading && (
+              <div className="message assistant">
+                <div className="avatar"><Bot size={20} color="white" /></div>
+                <div className="bubble loading">
+                  <Loader2 className="spinner" size={16} /> Thinking...
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <div className="input-area">
+            <form className="input-wrapper" onSubmit={handleTextSubmit}>
+              <input 
+                type="text" 
+                placeholder="Type a message..."
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                disabled={currentState === STATE.PROCESSING || currentState === STATE.RESPONDING || currentState === STATE.THINKING}
+                ref={inputRef}
+              />
+              <button 
+                type="submit" 
+                className="send-button"
+                disabled={currentState === STATE.PROCESSING || currentState === STATE.RESPONDING || currentState === STATE.THINKING || !inputText.trim()}
+              >
+                <Send size={20} />
+              </button>
+            </form>
+
             <button 
-                className={`icon-button ${voiceEnabled ? 'active' : ''}`}
-                onClick={() => setVoiceEnabled(!voiceEnabled)}
-                title={voiceEnabled ? "Mute Voice Response" : "Enable Voice Response"}
-                type="button"
+              className={`mic-button ${isRecording ? 'recording' : ''}`}
+              onClick={isRecording ? stopRecording : startRecording}
+              title={isRecording ? "Stop Recording" : "Click to Speak"}
+              type="button"
             >
-                {voiceEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
+              {isRecording ? <StopCircle size={24} /> : <Mic size={24} />}
             </button>
+
+            {isRecording && (
+              <button
+                className={`pause-button ${isListeningPaused ? 'paused' : ''}`}
+                onClick={isListeningPaused ? resumeListening : pauseListening}
+                title={isListeningPaused ? 'Resume Listening' : 'Pause Listening'}
+                type="button"
+              >
+                {isListeningPaused ? <PlayCircle size={22} /> : <PauseCircle size={22} />}
+              </button>
+            )}
+            
+          </div>
         </div>
-      </header>
-
-      <div className="chat-window">
-        {messages.map((msg, idx) => (
-          <div key={idx} className={`message ${msg.role} ${msg.isTemp ? 'temp' : ''} ${msg.proactive ? 'proactive' : ''} ${msg.content.includes("couldn't hear") ? 'error-msg' : ''}`}>
-            {msg.role === 'assistant' && (
-                <div className="avatar">
-                    {msg.proactive ? <Bell size={20} color="white" /> : <Bot size={20} color="white" />}
-                </div>
-            )}
-
-            <div className="bubble">
-              {msg.role === 'assistant' ? cleanMessage(msg.content) : msg.content}
-
-              {msg.taskData && Object.keys(msg.taskData).length > 0 && (
-                <div className="task-card">
-                  {msg.taskData.topic && <div><strong>Topic:</strong> {msg.taskData.topic}</div>}
-                  {msg.taskData.platform && <div><strong>Platform:</strong> {msg.taskData.platform}</div>}
-                  {typeof msg.taskData.images === 'number' && msg.taskData.images > 0 && (
-                    <div><strong>Images:</strong> {msg.taskData.images}</div>
-                  )}
-                  {msg.taskData.notion_page_id && (
-                    <a href={`https://www.notion.so/${msg.taskData.notion_page_id.replace(/-/g, '')}`} target="_blank" rel="noopener noreferrer">
-                      Open in Notion
-                    </a>
-                  )}
-                </div>
-              )}
-
-              {msg.awaitingClarification && (
-                <div className="clarification-badge">
-                  <HelpCircle size={14} /> Waiting for your answer
-                </div>
-              )}
-            </div>
-
-            {msg.role === 'user' && (
-                <div className="avatar">
-                    <User size={20} color="white" />
-                </div>
-            )}
-          </div>
-        ))}
-        
-        {loading && (
-          <div className="message assistant">
-            <div className="avatar"><Bot size={20} color="white" /></div>
-            <div className="bubble loading">
-              <Loader2 className="spinner" size={16} /> Thinking...
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
       </div>
-
-      <div className="input-area">
-        <form className="input-wrapper" onSubmit={handleTextSubmit}>
-          <input 
-            type="text" 
-            placeholder="Type a message..."
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            disabled={currentState === STATE.PROCESSING || currentState === STATE.RESPONDING || currentState === STATE.THINKING}
-            ref={inputRef}
-          />
-          <button 
-            type="submit" 
-            className="send-button"
-            disabled={currentState === STATE.PROCESSING || currentState === STATE.RESPONDING || currentState === STATE.THINKING || !inputText.trim()}
-          >
-            <Send size={20} />
-          </button>
-        </form>
-
-        <button 
-          className={`mic-button ${isRecording ? 'recording' : ''}`}
-          onClick={isRecording ? stopRecording : startRecording}
-          title={isRecording ? "Stop Recording" : "Click to Speak"}
-          type="button"
-        >
-          {isRecording ? <StopCircle size={24} /> : <Mic size={24} />}
-        </button>
-
-        {isRecording && (
-          <button
-            className={`pause-button ${isListeningPaused ? 'paused' : ''}`}
-            onClick={isListeningPaused ? resumeListening : pauseListening}
-            title={isListeningPaused ? 'Resume Listening' : 'Pause Listening'}
-            type="button"
-          >
-            {isListeningPaused ? <PlayCircle size={22} /> : <PauseCircle size={22} />}
-          </button>
-        )}
-        
-      </div>
-    </div>
+    </>
   );
 }
 

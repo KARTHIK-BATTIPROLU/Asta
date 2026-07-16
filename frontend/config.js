@@ -1,5 +1,8 @@
+// ASTA Web Client Configuration
+// Copy this to config.js and fill in your details
+
 window.CONFIG = {
     WS_URL: "ws://127.0.0.1:8000/ws/conversation",
-    BEARER_TOKEN: "asta-secure-token-2026",
-    DEVICE_ID: "8b7f3a44d045"
+    BEARER_TOKEN: "asta-super-secret-rot-9938472938472938",
+    DEVICE_ID: "your_device_id_here"
 };
