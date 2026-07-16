@@ -38,7 +38,7 @@ async def test_router_llm_service_emits_thinking_on_transcription():
 async def test_language_split_tts_emits_speaking_then_idle():
     tts = LanguageSplitTTS()
 
-    async def fake_run_tts(text):
+    async def fake_run_tts(text, context_id=""):
         yield "frame-1"
         yield "frame-2"
 

@@ -47,7 +47,7 @@ async def test_memory_voice_integration_real_wire():
         injector.push_frame = AsyncMock()
 
         user_frame = TranscriptionFrame(text="Where did I put my keys?", user_id="karthik", timestamp="now")
-        await injector.process_frame(user_frame, FrameDirection.UPSTREAM)
+        await injector.process_frame(user_frame, FrameDirection.DOWNSTREAM)
 
         injector.push_frame.assert_called()
 
@@ -55,13 +55,15 @@ async def test_memory_voice_integration_real_wire():
         call_2_args = injector.push_frame.call_args_list[1][0]
 
         assert isinstance(call_1_args[0], SystemPromptUpdateFrame)
+        # Regression assertion: MUST contain both a persona marker and the seeded fact
+        assert "PERSONALITY" in call_1_args[0].system_prompt, "System prompt is missing the persona marker (e.g. 'PERSONALITY')"
         assert fact_text in call_1_args[0].system_prompt, (
             f"real recall() did not surface the seeded Mongo fact into the assembled "
             f"system prompt: {call_1_args[0].system_prompt!r}"
         )
-        assert call_1_args[1] == FrameDirection.UPSTREAM
+        assert call_1_args[1] == FrameDirection.DOWNSTREAM
 
         assert call_2_args[0] is user_frame
-        assert call_2_args[1] == FrameDirection.UPSTREAM
+        assert call_2_args[1] == FrameDirection.DOWNSTREAM
     finally:
         await db_manager.db["insights"].delete_many({"session_id": session_id})

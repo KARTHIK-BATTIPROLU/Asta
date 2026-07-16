@@ -43,7 +43,7 @@ async def test_persona_injection_real_wire():
         injector.push_frame = AsyncMock()
 
         user_frame = TranscriptionFrame(text="Do I love biryani?", user_id="karthik", timestamp="now")
-        await injector.process_frame(user_frame, FrameDirection.UPSTREAM)
+        await injector.process_frame(user_frame, FrameDirection.DOWNSTREAM)
 
         injector.push_frame.assert_called()
 
@@ -67,9 +67,9 @@ async def test_persona_injection_real_wire():
         memory_idx = system_prompt.find(fact_text)
         assert persona_idx < memory_idx, "Persona block must appear before memory context"
         
-        assert call_1_args[1] == FrameDirection.UPSTREAM
+        assert call_1_args[1] == FrameDirection.DOWNSTREAM
 
         assert call_2_args[0] is user_frame
-        assert call_2_args[1] == FrameDirection.UPSTREAM
+        assert call_2_args[1] == FrameDirection.DOWNSTREAM
     finally:
         await db_manager.db["insights"].delete_many({"session_id": session_id})
