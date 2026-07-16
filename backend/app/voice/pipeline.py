@@ -39,6 +39,7 @@ class VadOrbNotifier(FrameProcessor):
     """
 
     async def process_frame(self, frame: Frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
         if isinstance(frame, VADUserStartedSpeakingFrame):
             await _emit_orb_state("listening")
         await self.push_frame(frame, direction)
@@ -52,6 +53,8 @@ class RouterLLMService(LLMService):
         self._morning_injected = False
 
     async def process_frame(self, frame: Frame, direction):
+        await super().process_frame(frame, direction)
+        
         if isinstance(frame, SystemPromptUpdateFrame):
             # Update the system prompt in the messages block
             # We assume the first message is the system prompt. If not, insert one.
@@ -125,11 +128,29 @@ class LanguageSplitTTS(TTSService):
             logger.warning(f"EdgeTTSService not available. TTS will gracefully degrade (no audio). Error: {e}")
             self.fallback = None
 
-    async def run_tts(self, text: str) -> AsyncGenerator[Frame, None]:
+    async def process_frame(self, frame: Frame, direction: FrameDirection):
+        logger.info(f"[LanguageSplitTTS] processing frame: {frame.__class__.__name__}")
+        if isinstance(frame, TextFrame):
+            from backend.app.api.ws_transport import broadcast_message, _active_connections
+            logger.info(f"[LanguageSplitTTS] Broadcasting TextFrame text: {frame.text} to {len(_active_connections)} clients")
+            await broadcast_message({"type": "text", "text": frame.text})
+            
+        if isinstance(frame, LLMFullResponseStartFrame):
+            await _emit_orb_state("speaking")
+            
+        if isinstance(frame, LLMFullResponseEndFrame):
+            await _emit_orb_state("idle")
+
+        if isinstance(frame, TextFrame) or isinstance(frame, LLMFullResponseEndFrame) or isinstance(frame, LLMFullResponseStartFrame):
+            await self.push_frame(frame, direction)
+            
+        await super().process_frame(frame, direction)
+
+    async def run_tts(self, text: str, context_id: str = "") -> AsyncGenerator[Frame, None]:
         # Detect language logic goes here. For now, route to edge-tts.
         if self.fallback:
             await _emit_orb_state("speaking")
-            async for frame in self.fallback.run_tts(text):
+            async for frame in self.fallback.run_tts(text, context_id):
                 yield frame
             await _emit_orb_state("idle")
 

@@ -39,6 +39,31 @@ async def synthesize_proactive_audio_b64(text: str) -> str | None:
         logger.debug(f"[TTS] proactive audio skipped: {e}")
         return None
 
+from pipecat.serializers.base_serializer import FrameSerializer
+from pipecat.frames.frames import Frame, InputAudioRawFrame, OutputAudioRawFrame, TranscriptionFrame, TextFrame
+import json
+
+class JsonFrameSerializer(FrameSerializer):
+    async def serialize(self, frame: Frame) -> str | bytes | None:
+        if isinstance(frame, OutputAudioRawFrame):
+            # Pass through audio bytes directly (FastAPIWebsocketTransport handles packetization)
+            return frame.audio
+        if isinstance(frame, TextFrame):
+            return json.dumps({"type": "text", "text": frame.text})
+        return None
+
+    async def deserialize(self, data: str | bytes) -> Frame | None:
+        if isinstance(data, bytes):
+            return InputAudioRawFrame(audio=data, sample_rate=16000, num_channels=1)
+        if isinstance(data, str):
+            try:
+                msg = json.loads(data)
+                if msg.get("type") == "text":
+                    return TranscriptionFrame(text=msg["text"], user_id="user", timestamp="")
+            except:
+                pass
+        return None
+
 @router.websocket("/ws/conversation")
 async def conversation_ws(websocket: WebSocket):
     trigger = websocket.query_params.get("trigger", "manual")
@@ -59,15 +84,18 @@ async def conversation_ws(websocket: WebSocket):
                 audio_in_sample_rate=16000,
                 audio_out_sample_rate=24000,
                 add_wav_header=True,
-                vad_enabled=False # Handled via SileroVADAnalyzer in pipeline
+                vad_enabled=False, # Handled via SileroVADAnalyzer in pipeline
+                serializer=JsonFrameSerializer()
             )
         )
         
         pipeline = build_pipeline(transport, trigger=trigger)
         task = PipelineTask(pipeline)
         
-        logger.info("[WS] Starting Pipecat PipelineTask")
-        await task.run()
+        from pipecat.pipeline.runner import PipelineRunner
+        runner = PipelineRunner()
+        logger.info("[WS] Starting Pipecat PipelineTask via Runner")
+        await runner.run(task)
 
     except Exception as e:
         logger.error(f"[WS] Pipeline error: {e}")
