@@ -55,3 +55,5 @@ pipecat-ai[silero]==1.5.0
 edge-tts
 openwakeword==0.6.0
 graphiti-core==0.29.2
+
+edge-tts==7.2.8
