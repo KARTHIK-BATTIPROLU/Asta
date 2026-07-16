@@ -21,7 +21,7 @@ class MemoryContextInjector(FrameProcessor):
     """
     async def process_frame(self, frame: Frame, direction: FrameDirection):
         await super().process_frame(frame, direction)
-        if direction == FrameDirection.UPSTREAM and isinstance(frame, TranscriptionFrame):
+        if direction == FrameDirection.DOWNSTREAM and isinstance(frame, TranscriptionFrame):
             query = frame.text
             
             # Fetch relevant context
