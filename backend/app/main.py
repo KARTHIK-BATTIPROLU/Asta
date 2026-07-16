@@ -1,6 +1,5 @@
 import sys
 import asyncio
-from contextlib import asynccontextmanager
 
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
@@ -51,32 +50,10 @@ try:
 except ImportError:
     pass
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    logger.info("Starting ASTA backend services...")
-    registry.initialize()
-    
-    # Start Scheduler and Accountability Monitor
-    from backend.app.services.scheduler_service import scheduler_service
-    scheduler_service.start()
-    
-    from backend.app.workflows.accountability_monitor import monitor
-    monitor.schedule_next()
-    
-    yield
-    
-    # Shutdown
-    logger.info("Shutting down ASTA backend services...")
-    await registry.shutdown()
-    scheduler_service.stop()
-    logger.info("Backend shutdown complete.")
-
 app = FastAPI(
     title="ASTA Engine",
     description="Advanced System for Task Automation",
     version="1.0.0",
-    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -102,6 +79,11 @@ app.include_router(content_router, prefix="/api")
 app.include_router(health_router, prefix="/api")
 from backend.app.api import settings_routes
 app.include_router(settings_routes.router, prefix="/api", tags=["settings"])
+from backend.app.api import ws_transport
+from backend.app.api import sync_routes
+
+# Note: WS routes are registered inside ws_transport
+app.include_router(sync_routes.router, prefix="/api/v1", tags=["sync"])
 
 
 @app.get("/api/me")
@@ -234,14 +216,21 @@ async def chat_completions_adapter(request: ChatCompletionRequest, token: str = 
 async def startup_event():
     logger.info("Initializing MVE Core Services...")
     
-    # 0. Environment Validation (Fail-Fast)
+    # 0. Environment Validation & Core Libs (Fail-Fast)
     try:
         from backend.app.core.env_validation import validate_environment
         validate_environment()
+        
+        # Verify absolute core dependencies
+        import graphiti_core
+        import pipecat
+        import langchain_core
+        import groq
+        import apscheduler
     except Exception as e:
-        logger.critical("Startup Terminated due to Environment Validation Failure.")
+        logger.critical(f"Startup Terminated due to Environment/Core Lib Validation Failure: {e}")
         # Re-raise to prevent uvicorn from starting up broken
-        raise e
+        raise RuntimeError(f"Core dependency missing: {e}")
     
     # 1. Spacy Validation
     try:
@@ -341,12 +330,7 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"SessionManager startup failed: {e}")
 
-    # Start Saga Retry Worker (recovers partially-failed memory writes)
-    try:
-        from memory.memory_saga import saga_retry_worker
-        await saga_retry_worker.start()
-    except Exception as e:
-        logger.warning(f"SagaRetryWorker startup failed: {e}")
+    # Saga Retry Worker removed in Phase 0
 
     # Initialize Wake Word Detection Service
     try:
@@ -451,6 +435,9 @@ async def startup_event():
         scheduler_service.set_night_callback(night_planning_callback)
         scheduler_service.start()
         logger.info("Scheduler started: morning alarm 5:30 AM IST, night planning 10:30 PM IST")
+
+        from backend.app.workflows.accountability_monitor import monitor
+        monitor.schedule_next()
     except Exception as e:
         logger.error(f"Scheduler startup failed: {e}")
 
@@ -512,17 +499,7 @@ async def shutdown_event():
     except Exception as e:
         logger.warning(f"Embedding service shutdown error: {e}")
 
-    try:
-        from memory.memory_saga import saga_retry_worker
-        # Drain pending sagas to prevent stuck writes on hard kill
-        try:
-            import asyncio
-            await asyncio.wait_for(saga_retry_worker.drain(), timeout=5.0)
-        except asyncio.TimeoutError:
-            logger.warning("Saga drain timed out during shutdown.")
-        await saga_retry_worker.stop()
-    except Exception:
-        pass
+    # Saga drain removed in Phase 0
     try:
         from backend.app.services.session_manager import SessionManager
         await SessionManager.stop_workers()

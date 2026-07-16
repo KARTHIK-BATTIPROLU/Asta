@@ -1,0 +1,20 @@
+{"q": "What is ASTA?", "expected": "A personal assistant system created for Karthik."}
+{"q": "Where does ASTA store its memory?", "expected": "MongoDB for raw logs, Neo4j for the knowledge graph."}
+{"q": "What is the primary language used for ASTA backend?", "expected": "Python using FastAPI."}
+{"q": "Does ASTA have a voice interface?", "expected": "Yes, using Pipecat and WebSockets."}
+{"q": "What is Karthik's role?", "expected": "Creator and boss."}
+{"q": "How does ASTA handle offline sync?", "expected": "It uses an idempotent /sync endpoint that dedupes by client_id."}
+{"q": "Where does ASTA execute terminal commands securely?", "expected": "Through the OpenClaw Gateway with HMAC signatures."}
+{"q": "What is the allowed path for the Dev Agent?", "expected": "~/asta-projects"}
+{"q": "How are scheduled tasks run?", "expected": "Using APScheduler in the backend."}
+{"q": "What triggers the Morning Briefing?", "expected": "A scheduled job or explicit voice command."}
+{"q": "What is the 4-stage escalation ladder?", "expected": "Nag -> Guilt -> Negotiate -> Log."}
+{"q": "What is the conflict rule for offline sync?", "expected": "Server state wins, client edits become new events."}
+{"q": "How are WebSockets tested?", "expected": "Using a mocked pipecat transport in Pytest."}
+{"q": "What is the backup retention policy?", "expected": "Keep last 14 daily, 8 weekly backups."}
+{"q": "How is Neo4j rebuilt?", "expected": "By replaying all memories from MongoDB through ops/rebuild_graph.py."}
+{"q": "What model handles task decomposition?", "expected": "The LLM router configured via llm_factory."}
+{"q": "What is the default wake word for the PC client?", "expected": "Simulated via Ctrl+Shift+A hotkey."}
+{"q": "How is research data structured?", "expected": "Map-Reduce pipeline outputting Notion sections."}
+{"q": "Is TailwindCSS used for the frontend?", "expected": "Not by default, Vanilla CSS is preferred."}
+{"q": "What is the ultimate source of truth in ASTA?", "expected": "The MongoDB event log."}

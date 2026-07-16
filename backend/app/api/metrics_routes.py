@@ -4,7 +4,7 @@ from typing import List, Optional
 from datetime import datetime, timezone
 import logging
 from backend.app.core.registry import registry
-from backend.app.api.dependencies import get_api_key
+from backend.app.auth.token_auth import verify_bearer_and_device
 
 router = APIRouter()
 logger = logging.getLogger("MetricsRoutes")
@@ -23,7 +23,7 @@ class DailyMetricsPayload(BaseModel):
 @router.post("/metrics/daily")
 async def receive_daily_metrics(
     payload: DailyMetricsPayload,
-    _=Depends(get_api_key)
+    _=Depends(verify_bearer_and_device)
 ):
     """
     Receives daily metrics from the Android worker (sent at 11:30 PM).

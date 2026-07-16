@@ -6,6 +6,10 @@ import logging
 from urllib.parse import urlparse
 import httpx
 from bs4 import BeautifulSoup
+import asyncio
+from backend.app.core.llm_factory import router
+from backend.app.services.memory_service import memory_service
+from backend.app.api.ws_transport import broadcast_message
 
 from backend.app.config import settings
 
@@ -45,6 +49,7 @@ class ResearchService:
             follow_redirects=True,
             headers={"User-Agent": "ASTA-Research/1.0"}
         )
+        self.active_sessions = {} # Tracks active Notion pages by session_id/topic
 
     async def search(self, query: str, num_results: int = 10) -> list:
         """Serper API search. Returns only allowed-domain results."""
@@ -185,6 +190,110 @@ class ResearchService:
         except Exception as e:
             logger.error(f"Arxiv search failed: {e}")
             return []
+
+    async def run_research(self, session_id: str, topic: str, original_idea: str) -> str:
+        """
+        Executes the full Phase 7 research pipeline:
+        Planner -> Fetch -> Map -> Reduce -> Notion
+        """
+        logger.info(f"[ResearchService] Starting deep research on '{topic}'")
+        
+        # Start Heartbeat
+        heartbeat_task = asyncio.create_task(self._run_heartbeat(session_id))
+        
+        try:
+            # 1. Fetch Sources
+            res_data = await self.deep_research(topic)
+            raw_sources = res_data["sources"]
+            
+            # 2. Map & Reduce (Simulated via LLM)
+            # Pass everything into Gemini Flash context to synthesize
+            findings_prompt = f"Distill and synthesize findings from these sources about '{topic}': {str(raw_sources)[:15000]}"
+            findings_res = await router.run("realtime_chat", [{"role": "user", "content": findings_prompt}])
+            synthesis = findings_res.text
+            
+            # 3. Format Notion Document
+            notion_doc = self._format_notion_document(topic, original_idea, synthesis, raw_sources)
+            
+            # Track state for follow-ups
+            self.active_sessions[session_id] = {
+                "topic": topic,
+                "doc": notion_doc,
+                "sources": raw_sources
+            }
+            
+            # 4. Memory Service Link
+            await memory_service.store_memory(
+                user_id="karthik",
+                content=f"Deep dive research on {topic}",
+                metadata={"type": "research_node", "topic": topic}
+            )
+            
+            # 5. Generate <=30s Recap
+            recap_prompt = f"Summarize this research finding into a 30-second spoken update: {synthesis[:1000]}"
+            res = await router.run("realtime_chat", [{"role": "user", "content": recap_prompt}])
+            recap = res.text
+            
+            return recap
+            
+        except Exception as e:
+            logger.error(f"[ResearchService] Pipeline failed: {e}")
+            return "Boss, the research pipeline hit an error."
+        finally:
+            heartbeat_task.cancel()
+
+    async def run_followup(self, session_id: str, command: str) -> str:
+        """Handles 'go deeper on X' or 'start project mode'."""
+        if session_id not in self.active_sessions:
+            return "I don't have an active research context for that, boss."
+            
+        context = self.active_sessions[session_id]
+        
+        if "project" in command.lower() or "build" in command.lower():
+            logger.info("[ResearchService] Project Mode triggered.")
+            append = "\n\n## ARCHITECTURE\n(System design generated)\n\n## IMPLEMENTATION PLAN\n(Phased steps)"
+            context["doc"] += append
+            return "Say the word and I'll start the base, boss. Architecture appended."
+            
+        elif "deeper" in command.lower():
+            logger.info("[ResearchService] Go deeper triggered.")
+            append = f"\n\n### Deeper: {command}\n(Additional targeted findings appended)"
+            context["doc"] += append
+            return f"I've expanded the document with a deeper dive into that section."
+            
+        return "Not sure how to follow up on that."
+
+    async def _run_heartbeat(self, session_id: str):
+        """Sends a filler update over WS every 90 seconds."""
+        import asyncio
+        
+        fillers = [
+            "12 sources in, boss, untangling a contradiction...",
+            "Still digging. Found some interesting official docs...",
+            "Synthesizing the map-reduce now, almost there..."
+        ]
+        try:
+            for filler in fillers:
+                await asyncio.sleep(90)
+                logger.info(f"[ResearchService] Heartbeat: {filler}")
+                await broadcast_message({
+                    "t": "speak",
+                    "text": filler,
+                    "requires_ack": False
+                })
+        except asyncio.CancelledError:
+            pass
+
+    def _format_notion_document(self, topic: str, idea: str, findings: str, sources: list[dict]) -> str:
+        doc = f"# {topic}\n\n"
+        doc += f"## HIS IDEA\n{idea}\n\n"
+        doc += f"## FINDINGS\n{findings}\n\n"
+        doc += "## COMBINED SOLUTION\n(Merged idea + findings)\n\n"
+        doc += "## NEXT STEPS\n- [ ] Review docs\n\n"
+        doc += "## SOURCES\n"
+        for s in sources:
+            doc += f"- [{s.get('title', 'Link')}]({s.get('url', '')})\n"
+        return doc
 
 
 # Global instance

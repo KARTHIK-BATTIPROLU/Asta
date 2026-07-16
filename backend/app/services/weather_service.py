@@ -1,45 +1,44 @@
 """
 ASTA Weather Service
-Fetches weather data from OpenWeather API.
+Fetches weather data from Open-Meteo (free, keyless).
 """
 import logging
 import httpx
 
-from backend.app.config import settings
-
 logger = logging.getLogger(__name__)
-
 
 class WeatherService:
     """Service for fetching weather information."""
     
-    BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
+    # Open-Meteo endpoint for Hyderabad (default)
+    BASE_URL = "https://api.open-meteo.com/v1/forecast"
     
-    async def get_weather(self, city: str = "Hyderabad") -> dict:
-        """Get current weather for a city. Default: Hyderabad (Karthik's location)."""
+    async def get_weather(self, lat: float = 17.3850, lon: float = 78.4867, city: str = "Hyderabad") -> dict:
+        """Get current weather from Open-Meteo."""
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.get(
                     self.BASE_URL,
                     params={
-                        "q": city,
-                        "appid": settings.OPENWEATHER_API_KEY,
-                        "units": "metric"
+                        "latitude": lat,
+                        "longitude": lon,
+                        "current": "temperature_2m,apparent_temperature,precipitation,weather_code",
+                        "timezone": "auto"
                     }
                 )
                 data = resp.json()
+                current = data.get("current", {})
+                
+                temp_c = current.get("temperature_2m")
+                feels_like_c = current.get("apparent_temperature")
+                
+                summary = f"{city}: {temp_c}°C, feels like {feels_like_c}°C."
                 
                 return {
                     "city": city,
-                    "temp_c": data["main"]["temp"],
-                    "feels_like_c": data["main"]["feels_like"],
-                    "condition": data["weather"][0]["description"],
-                    "humidity": data["main"]["humidity"],
-                    "summary": (
-                        f"{city}: {data['main']['temp']:.0f}°C, "
-                        f"{data['weather'][0]['description']}, "
-                        f"feels like {data['main']['feels_like']:.0f}°C"
-                    )
+                    "temp_c": temp_c,
+                    "feels_like_c": feels_like_c,
+                    "summary": summary
                 }
         except Exception as e:
             logger.error(f"Weather fetch failed for {city}: {e}")
@@ -47,16 +46,13 @@ class WeatherService:
                 "city": city,
                 "temp_c": None,
                 "feels_like_c": None,
-                "condition": "unavailable",
-                "humidity": None,
                 "summary": f"Weather data unavailable for {city}"
             }
     
-    async def get_weather_brief(self, city: str = "Hyderabad") -> str:
+    async def get_weather_brief(self, lat: float = 17.3850, lon: float = 78.4867, city: str = "Hyderabad") -> str:
         """Get brief weather summary string."""
-        w = await self.get_weather(city)
+        w = await self.get_weather(lat, lon, city)
         return w["summary"]
-
 
 # Global instance
 weather_service = WeatherService()

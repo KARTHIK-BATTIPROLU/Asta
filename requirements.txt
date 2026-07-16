@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-pymongo==4.9.0
+pymongo>=4.12
 motor
 python-dotenv
 httpx
@@ -51,3 +51,7 @@ langgraph-checkpoint-mongodb==0.4.0
 
 # Firebase Admin SDK (FCM push notifications — gracefully skipped until service-account.json is present)
 firebase-admin
+pipecat-ai[silero]
+edge-tts
+openwakeword==0.6.0
+graphiti-core
