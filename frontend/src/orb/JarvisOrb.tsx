@@ -11,7 +11,19 @@ const MODE_LABEL: Record<TrackerStatus["mode"], string> = {
   zoom: "ZOOM",
 };
 
-const JarvisOrb = forwardRef((props, ref) => {
+interface JarvisOrbProps {
+  messages?: any[];
+  inputText?: string;
+  setInputText?: (v: string) => void;
+  handleTextSubmit?: (e: React.FormEvent) => void;
+  isRecording?: boolean;
+  startRecording?: () => void;
+  stopRecording?: () => void;
+  astaState?: string;
+  astaStatus?: string;
+}
+
+const JarvisOrb = forwardRef<any, JarvisOrbProps>((props, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -175,6 +187,45 @@ const JarvisOrb = forwardRef((props, ref) => {
             RESET
           </button>
         </div>
+
+        {/* ASTA INTEGRATION */}
+        <div style={{ marginTop: "20px", borderTop: "1px solid rgba(48,170,255,0.3)", paddingTop: "10px" }}>
+          <div className="camera-status" style={{ marginBottom: "10px", color: props.astaState === 'PROCESSING' ? '#ffaa30' : '#30aaff' }}>
+            ASTA: {props.astaStatus || 'DISCONNECTED'}
+          </div>
+          
+          <div className="hud-row">
+            <button 
+              type="button" 
+              className="hud-btn" 
+              onClick={props.isRecording ? props.stopRecording : props.startRecording}
+              style={{ color: props.isRecording ? '#ff4444' : '#30aaff' }}
+            >
+              {props.isRecording ? "STOP MIC" : "START MIC"}
+            </button>
+          </div>
+          
+          <form onSubmit={props.handleTextSubmit} style={{ display: "flex", gap: "5px", marginTop: "10px" }}>
+            <input 
+              type="text" 
+              className="hud-btn"
+              style={{ flex: 1, cursor: "text", background: "rgba(0,0,0,0.5)", border: "1px solid rgba(48, 170, 255, 0.4)", color: "#fff", padding: "5px 10px" }}
+              placeholder="Type a message..."
+              value={props.inputText || ""}
+              onChange={(e) => props.setInputText && props.setInputText(e.target.value)}
+            />
+            <button type="submit" className="hud-btn">SEND</button>
+          </form>
+        </div>
+      </div>
+
+      {/* Subtitles for ASTA responses */}
+      <div className="hud" style={{ position: "absolute", bottom: "30px", left: "40px", maxWidth: "40vw", color: "#f8fafc", fontFamily: "monospace", fontSize: "14px", lineHeight: "1.5", textShadow: "0 0 4px rgba(48, 170, 255, 0.5)", pointerEvents: "none" }}>
+        {props.messages && props.messages.filter(m => m.role === 'assistant').slice(-1).map((msg, idx) => (
+          <div key={idx} className="bubble">
+            {msg.content.replace(/\{"action".*?\}/gs, '').trim()}
+          </div>
+        ))}
       </div>
     </>
   );
