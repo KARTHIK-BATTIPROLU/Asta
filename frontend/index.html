@@ -4,9 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ASTA Web Client</title>
-  </head>
+  <script>
+window.onerror = function(message, source, lineno, colno, error) {
+  document.body.innerHTML += '<div style="color:red;z-index:9999;position:fixed;top:10px;left:10px;background:white;padding:10px;">' + message + '</div>';
+};
+</script>
+</head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
+

@@ -699,6 +699,23 @@ export function createOrbScene(container: HTMLElement): OrbSceneApi {
   // ═══════════════════════════════════════════════
   // ANIMATION
   // ═══════════════════════════════════════════════
+  // ═══ ASTA SEAM ═══
+  const ASTA_STATES = {
+    idle: { bloomMult: 1.0, rotSpeed: 1.0, chromaticMult: 1.0, surgeFreq: 1.0, surgeAmp: 1.0 },
+    listening: { bloomMult: 1.4, rotSpeed: 0.5, chromaticMult: 1.0, surgeFreq: 1.0, surgeAmp: 1.0 },
+    thinking: { bloomMult: 1.0, rotSpeed: 2.5, chromaticMult: 2.0, surgeFreq: 3.0, surgeAmp: 1.0 },
+    speaking: { bloomMult: 1.0, rotSpeed: 1.0, chromaticMult: 1.0, surgeFreq: 1.0, surgeAmp: 2.5 },
+  };
+  let ASTA_PARAMS = { ...ASTA_STATES.idle };
+
+  function setAstaState(s: "idle" | "listening" | "thinking" | "speaking") {
+    ASTA_PARAMS = { ...ASTA_STATES[s] };
+    if (s === "listening") {
+      // one entry surge
+      bloom.strength += 0.8;
+    }
+  }
+
   const clock = new THREE.Clock();
   let flickerTimer = 0;
   let rafId = 0;
@@ -854,22 +871,7 @@ export function createOrbScene(container: HTMLElement): OrbSceneApi {
     renderer.domElement.remove();
   }
 
-  // ═══ ASTA SEAM ═══
-  const ASTA_STATES = {
-    idle: { bloomMult: 1.0, rotSpeed: 1.0, chromaticMult: 1.0, surgeFreq: 1.0, surgeAmp: 1.0 },
-    listening: { bloomMult: 1.4, rotSpeed: 0.5, chromaticMult: 1.0, surgeFreq: 1.0, surgeAmp: 1.0 },
-    thinking: { bloomMult: 1.0, rotSpeed: 2.5, chromaticMult: 2.0, surgeFreq: 3.0, surgeAmp: 1.0 },
-    speaking: { bloomMult: 1.0, rotSpeed: 1.0, chromaticMult: 1.0, surgeFreq: 1.0, surgeAmp: 2.5 },
-  };
-  let ASTA_PARAMS = { ...ASTA_STATES.idle };
 
-  function setAstaState(s: "idle" | "listening" | "thinking" | "speaking") {
-    ASTA_PARAMS = { ...ASTA_STATES[s] };
-    if (s === "listening") {
-      // one entry surge
-      bloom.strength += 0.8;
-    }
-  }
 
   return {
     rotateBy,
