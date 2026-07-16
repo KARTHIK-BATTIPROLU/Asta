@@ -3,10 +3,11 @@ from typing import AsyncGenerator
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.task import PipelineTask
 from pipecat.processors.aggregators.sentence import SentenceAggregator
+from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.processors.frameworks.rtvi import RTVIProcessor
 from pipecat.services.llm_service import LLMService
 from pipecat.services.tts_service import TTSService
-from pipecat.frames.frames import Frame, TextFrame, TranscriptionFrame, LLMFullResponseStartFrame, LLMFullResponseEndFrame
+from pipecat.frames.frames import Frame, TextFrame, TranscriptionFrame, LLMFullResponseStartFrame, LLMFullResponseEndFrame, VADUserStartedSpeakingFrame
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 
 from backend.app.voice.stt import GroqWhisperSTT
@@ -16,6 +17,31 @@ from backend.app.voice.memory_injector import MemoryContextInjector, SystemPromp
 from backend.app.core.llm_factory import router
 
 logger = logging.getLogger("Pipeline")
+
+
+async def _emit_orb_state(state: str):
+    """Broadcast an orb_state event to connected WS clients. Best-effort --
+    a client UI update is never worth failing the pipeline over."""
+    try:
+        from backend.app.api.ws_transport import broadcast_message
+        await broadcast_message({"type": "orb_state", "state": state})
+    except Exception as e:
+        logger.debug(f"[OrbState] broadcast skipped: {e}")
+
+
+class VadOrbNotifier(FrameProcessor):
+    """
+    Sits directly after the VAD stage (before STT has any chance to consume
+    VAD's control frames) so it reliably sees VADUserStartedSpeakingFrame --
+    pipecat's VADProcessor pushes this unconditionally the moment Silero
+    detects speech onset. Translates it into the "listening" orb_state.
+    Purely observational: every frame is forwarded downstream unchanged.
+    """
+
+    async def process_frame(self, frame: Frame, direction: FrameDirection):
+        if isinstance(frame, VADUserStartedSpeakingFrame):
+            await _emit_orb_state("listening")
+        await self.push_frame(frame, direction)
 
 class RouterLLMService(LLMService):
     def __init__(self, task: str = "realtime_chat", trigger: str = "manual"):
@@ -37,7 +63,8 @@ class RouterLLMService(LLMService):
             
         elif isinstance(frame, TranscriptionFrame):
             self.messages.append({"role": "user", "content": frame.text})
-            
+            await _emit_orb_state("thinking")
+
             # Inject morning verification on the first turn if trigger is morning_alarm
             if self.trigger == "morning_alarm" and not self._morning_injected:
                 from backend.app.services.morning_service import morning_service
@@ -101,8 +128,10 @@ class LanguageSplitTTS(TTSService):
     async def run_tts(self, text: str) -> AsyncGenerator[Frame, None]:
         # Detect language logic goes here. For now, route to edge-tts.
         if self.fallback:
+            await _emit_orb_state("speaking")
             async for frame in self.fallback.run_tts(text):
                 yield frame
+            await _emit_orb_state("idle")
 
 def build_pipeline(transport, trigger="manual"):
     from pipecat.processors.audio.vad_processor import VADProcessor
@@ -121,6 +150,7 @@ def build_pipeline(transport, trigger="manual"):
         
     processors.extend([
         vad,
+        VadOrbNotifier(),
         stt,
         reflex,
         memory_injector,

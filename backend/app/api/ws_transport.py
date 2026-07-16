@@ -50,6 +50,7 @@ async def conversation_ws(websocket: WebSocket):
     await websocket.accept()
     _active_connections.add(websocket)
     logger.info("[WS] Client connected (authenticated)")
+    await websocket.send_json({"type": "orb_state", "state": "idle"})
 
     try:
         transport = FastAPIWebsocketTransport(
