@@ -2,13 +2,27 @@ import pytest
 import asyncio
 from unittest.mock import patch, MagicMock, AsyncMock
 
-# Mock dependencies
+# Mock heavy/networked dependencies for the duration of this import only, then
+# restore sys.modules so other test files in the same pytest run get the real
+# modules back (leaving these mocked leaks a poisoned llm_factory into every
+# test that imports it afterward, e.g. tests/test_router.py).
 import sys
-sys.modules["backend.app.api.ws_transport"] = MagicMock()
-sys.modules["backend.app.core.llm_factory"] = MagicMock()
-sys.modules["backend.app.services.memory_service"] = MagicMock()
+_MOCKED_MODULES = [
+    "backend.app.api.ws_transport",
+    "backend.app.core.llm_factory",
+    "backend.app.services.memory_service",
+]
+_original_modules = {name: sys.modules.get(name) for name in _MOCKED_MODULES}
+for _name in _MOCKED_MODULES:
+    sys.modules[_name] = MagicMock()
 
 from backend.app.services.research_service import research_service
+
+for _name, _mod in _original_modules.items():
+    if _mod is not None:
+        sys.modules[_name] = _mod
+    else:
+        sys.modules.pop(_name, None)
 
 @pytest.fixture
 def mock_router():
