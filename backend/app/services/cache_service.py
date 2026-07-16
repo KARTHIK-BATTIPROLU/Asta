@@ -111,7 +111,13 @@ class CacheService:
         try:
             if self._redis:
                 if isinstance(value, (dict, list)):
-                    value = json.dumps(value)
+                    class DateTimeEncoder(json.JSONEncoder):
+                        def default(self, obj):
+                            from datetime import datetime, date
+                            if isinstance(obj, (datetime, date)):
+                                return obj.isoformat()
+                            return super().default(obj)
+                    value = json.dumps(value, cls=DateTimeEncoder)
                 await self._redis.setex(key, ttl, value)
             else:
                 self._memory_cache[key] = value

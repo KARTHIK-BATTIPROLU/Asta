@@ -504,7 +504,7 @@ async def shutdown_event():
         from backend.app.services.session_manager import SessionManager
         await SessionManager.stop_workers()
     except Exception as e:
-        pass
+        logger.warning(f"Error stopping session manager workers: {e}")
         
     try:
         from backend.app.core.task_registry import TaskRegistry

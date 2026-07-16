@@ -48,22 +48,6 @@ class SessionCache:
         """Retrieve session data"""
         cache_key = f"session:{self.session_id}:{key}"
         return await self.l1_cache.get(cache_key)
-    
-    def get_llm_history(self) -> list:
-        """
-        Get LLM conversation history for this session.
-        Returns empty list for now - history is managed by SessionManager.
-        """
-        # TODO: Integrate with SessionManager for proper history retrieval
-        return []
-    
-    async def append_turn(self, user_msg: str, assistant_msg: str):
-        """
-        Append a conversation turn to session history.
-        For now, this is a no-op as history is managed by SessionManager.
-        """
-        # TODO: Integrate with SessionManager for proper history storage
-        pass
 
 
 class L1Manager:

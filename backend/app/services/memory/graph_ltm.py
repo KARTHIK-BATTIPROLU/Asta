@@ -8,7 +8,6 @@ from backend.app.config import settings
 
 from graphiti_core import Graphiti
 from graphiti_core.nodes import EntityNode
-GRAPHITI_AVAILABLE = True
 
 logger = logging.getLogger("GraphLTM")
 
@@ -47,9 +46,6 @@ class GraphLTMManager:
         self.is_initialized = False
 
     async def initialize(self):
-        if not GRAPHITI_AVAILABLE:
-            logger.warning("[GraphLTM] graphiti_core not available. Skipping initialization.")
-            return
 
         neo4j_uri = getattr(settings, "NEO4J_URI", None)
         neo_user = getattr(settings, "NEO4J_USERNAME", None)
@@ -90,7 +86,7 @@ class GraphLTMManager:
             return
         
         try:
-            # await self.client.add_episode(name=session_id, body=insights_text)
+            await self.client.add_episode(name=session_id, body=insights_text)
             logger.info(f"[GraphLTM] Added episode {session_id} to Graphiti.")
         except Exception as e:
             logger.error(f"[GraphLTM] Failed to add episode: {e}")
@@ -102,9 +98,8 @@ class GraphLTMManager:
         
         try:
             # In Graphiti, we search around center nodes (e.g. "Karthik")
-            # results = await self.client.search(query, center="Karthik", k=k)
-            # return results
-            return []
+            results = await self.client.search(query, center="Karthik", k=k)
+            return results
         except Exception as e:
             logger.error(f"[GraphLTM] Search failed: {e}")
             return []
