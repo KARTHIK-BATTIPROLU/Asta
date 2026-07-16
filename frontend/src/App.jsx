@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, Bot, User, Loader2, StopCircle, Volume2, VolumeX, Activity, PauseCircle, PlayCircle, Send, Bell, HelpCircle } from 'lucide-react';
 import './App.css';
-import JarvisOrb from './orb/JarvisOrb';
+import AstaOrb from './orb/AstaOrb';
 
 // CSP-compliant WebSocket URL configuration
 const WS_TOKEN = import.meta.env.VITE_ASTA_API_TOKEN || "asta-super-secret-rot-9938472938472938";
 const WS_DEVICE_ID = import.meta.env.VITE_ASTA_DEVICE_ID || "asta-web-client";
 const WS_HOST = import.meta.env.VITE_ASTA_WS_HOST || "ws://localhost:8000";
-const WS_BASE_URL = `${WS_HOST}/ws/conversation?token=${encodeURIComponent(WS_TOKEN)}&device_id=${encodeURIComponent(WS_DEVICE_ID)}&trigger=wake_word`;
+const WS_BASE_URL = `${WS_HOST}/ws/conversation?token=${encodeURIComponent(WS_TOKEN)}&device_id=${encodeURIComponent(WS_DEVICE_ID)}`;
 
 // TASK 1: DEFINE STATES
 const STATE = {
@@ -967,6 +967,92 @@ function App() {
     sendControlMessage({ type: 'text_input', text: textMsg });
   };
 
+  // Browser-side Wake Word Listener for ASTA
+  const wakeWordRecognitionRef = useRef(null);
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      console.warn("SpeechRecognition not supported in this browser.");
+      return;
+    }
+
+    const rec = new SpeechRecognition();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'en-US';
+
+    rec.onresult = (event) => {
+      const results = event.results;
+      for (let i = event.resultIndex; i < results.length; i++) {
+        const text = results[i][0].transcript.toLowerCase().trim();
+        if (results[i].isFinal) {
+          console.log("[Wake Word Listener] Heard final:", text);
+          if (text.includes("asta") || text.includes("aster") || text.includes("hey asta") || text.includes("hay asta") || text.includes("hasty")) {
+            console.log("[Wake Word Listener] Match! Triggering ASTA.");
+            if (currentStateRef.current === STATE.IDLE && !isRecordingRef.current) {
+              startRecording();
+            }
+          }
+        } else {
+          console.log("[Wake Word Listener] Heard interim:", text);
+          if (text.includes("asta") || text.includes("aster") || text.includes("hey asta") || text.includes("hay asta") || text.includes("hasty")) {
+            console.log("[Wake Word Listener] Interim Match! Triggering ASTA.");
+            if (currentStateRef.current === STATE.IDLE && !isRecordingRef.current) {
+              startRecording();
+            }
+          }
+        }
+      }
+    };
+
+    rec.onend = () => {
+      console.log("[Wake Word Listener] Recognition ended.");
+      // Restart if we are still IDLE
+      if (currentStateRef.current === STATE.IDLE && !isRecordingRef.current && !isUnmountingRef.current) {
+        try {
+          rec.start();
+          console.log("[Wake Word Listener] Restarted.");
+        } catch (e) {
+          console.error("[Wake Word Listener] Restart error:", e);
+        }
+      }
+    };
+
+    rec.onerror = (e) => {
+      console.error("[Wake Word Listener] Error:", e.error);
+    };
+
+    wakeWordRecognitionRef.current = rec;
+
+    return () => {
+      if (wakeWordRecognitionRef.current) {
+        wakeWordRecognitionRef.current.abort();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const rec = wakeWordRecognitionRef.current;
+    if (!rec) return;
+
+    if (currentState === STATE.IDLE && !isRecording) {
+      try {
+        rec.start();
+        console.log("[Wake Word Listener] Web wake word listening activated.");
+      } catch (e) {
+        // Already started
+      }
+    } else {
+      try {
+        rec.abort();
+        console.log("[Wake Word Listener] Web wake word listening deactivated.");
+      } catch (e) {
+        // Already stopped
+      }
+    }
+  }, [currentState, isRecording]);
+
   // Clean message content - remove raw JSON tool calls from display
   const cleanMessage = (text) => {
     if (!text) return '';
@@ -975,7 +1061,7 @@ function App() {
   };
 
   return (
-    <JarvisOrb 
+    <AstaOrb 
       ref={orbRef} 
       messages={messages}
       inputText={inputText}

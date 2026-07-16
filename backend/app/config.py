@@ -115,7 +115,7 @@ class Settings(BaseSettings):
 
     # Wake Word Detection
     WAKE_WORD_ENABLED: bool = False
-    WAKE_WORD_MODELS: str = "hey_jarvis"
+    WAKE_WORD_MODELS: str = "hey_asta"
     WAKE_WORD_THRESHOLD: float = 0.5
     WAKE_WORD_COOLDOWN: float = 2.0
 

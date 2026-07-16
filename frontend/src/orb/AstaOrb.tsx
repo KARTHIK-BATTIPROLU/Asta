@@ -11,7 +11,7 @@ const MODE_LABEL: Record<TrackerStatus["mode"], string> = {
   zoom: "ZOOM",
 };
 
-interface JarvisOrbProps {
+interface AstaOrbProps {
   messages?: any[];
   inputText?: string;
   setInputText?: (v: string) => void;
@@ -23,7 +23,7 @@ interface JarvisOrbProps {
   astaStatus?: string;
 }
 
-const JarvisOrb = forwardRef<any, JarvisOrbProps>((props, ref) => {
+const AstaOrb = forwardRef<any, AstaOrbProps>((props, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -130,7 +130,7 @@ const JarvisOrb = forwardRef<any, JarvisOrbProps>((props, ref) => {
       <div className="overlay-grain" />
       <div className="overlay-scanlines" />
 
-      <div className="hud hud-title">U.L.T.R.O.N.</div>
+      <div className="hud hud-title">ASTA</div>
 
       <div className="hud hud-hint">
         <div>
@@ -231,5 +231,4 @@ const JarvisOrb = forwardRef<any, JarvisOrbProps>((props, ref) => {
   );
 });
 
-export default JarvisOrb;
-
+export default AstaOrb;
