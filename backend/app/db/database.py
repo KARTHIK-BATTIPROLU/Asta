@@ -8,6 +8,7 @@ No PyMongo sync clients. No duplicate Motor clients. One pool. One health flag.
 
 import logging
 import asyncio
+from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import ASCENDING
 from neo4j import AsyncGraphDatabase
@@ -30,6 +31,7 @@ class DatabaseManager:
       - Helper methods for safe collection access with retry
     """
     _instance = None
+    ObjectId = ObjectId  # exposed so callers can do db_manager.ObjectId(id_str) without importing bson
 
     def __new__(cls):
         if cls._instance is None:

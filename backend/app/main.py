@@ -252,6 +252,11 @@ async def startup_event():
         from backend.app.config import settings
         if not settings.NEO4J_URI or not settings.NEO4J_PASSWORD:
             logger.warning("Degraded Mode Status: Neo4j Aura credentials missing from environment.")
+        else:
+            from backend.app.services.memory.graph_ltm import graph_ltm
+            await graph_ltm.initialize()
+            if not graph_ltm.is_initialized:
+                logger.warning("Degraded Mode Status: Graphiti/Neo4j L2 graph memory failed to initialize.")
     except Exception as e:
         logger.error(f"Degraded Mode Status: Failed to bind critical Polyglot Persistence endpoints! {e}")
     

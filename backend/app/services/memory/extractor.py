@@ -63,7 +63,7 @@ async def process_session_extraction(session_id: str):
     5. Pass to Graphiti L2.
     """
     from backend.app.db.database import db_manager
-    if not db_manager.db:
+    if db_manager.db is None:
         logger.error("[Extractor] Database not connected.")
         return
         

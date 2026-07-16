@@ -231,7 +231,7 @@ class LegacyLLMFactory:
     def get_model(self, task: str):
         from langchain_groq import ChatGroq
         from backend.app.config import settings
-        return ChatGroq(api_key=settings.GROQ_API_KEY, model="llama3-8b-8192", temperature=0)
+        return ChatGroq(api_key=settings.GROQ_API_KEY, model="llama-3.3-70b-versatile", temperature=0)
 
 llm_factory = LegacyLLMFactory()
 llm_router = router
