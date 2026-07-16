@@ -20,6 +20,7 @@ class MemoryContextInjector(FrameProcessor):
     before passing the TranscriptionFrame downstream.
     """
     async def process_frame(self, frame: Frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
         if direction == FrameDirection.UPSTREAM and isinstance(frame, TranscriptionFrame):
             query = frame.text
             
@@ -32,6 +33,7 @@ class MemoryContextInjector(FrameProcessor):
                 
                 date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
                 
+                # Build the memory context string
                 context_lines = [f"## WHAT I KNOW ABOUT KARTHIK RIGHT NOW (auto-generated, {date_str})"]
                 
                 if memories:
@@ -45,10 +47,14 @@ class MemoryContextInjector(FrameProcessor):
                     
                 context_block = "\n".join(context_lines)
                 
-                # Push the update frame first
-                await self.push_frame(SystemPromptUpdateFrame(system_prompt=context_block), direction)
+                # Fetch the full system prompt (persona + time/mood + memory + rules)
+                from backend.app.services.llm_service import get_system_prompt
+                full_system_prompt = get_system_prompt(health_status="full", memory_context=context_block)
                 
-                logger.info("[MemoryInjector] Successfully injected context block.")
+                # Push the update frame first
+                await self.push_frame(SystemPromptUpdateFrame(system_prompt=full_system_prompt), direction)
+                
+                logger.info("[MemoryInjector] Successfully injected full system prompt.")
                 
             except Exception as e:
                 logger.error(f"[MemoryInjector] Failed to inject memory context: {e}")

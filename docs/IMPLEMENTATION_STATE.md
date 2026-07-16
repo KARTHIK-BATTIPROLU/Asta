@@ -55,6 +55,8 @@ Backup/Restore: VERIFIED-LOCAL — real Mongo + Neo4j dump, tarred, restored
 | Dev Agent Gateway security | VERIFIED-LOCAL (server pending) | All 5 required attacks (HMAC-tampered, nonce replay, path-jail escape, disallowed argv, kill-switch) tested against the real gateway app. `docs/verification/probes/test_gateway_security.py:50,66,91,39,116`. | DONE |
 | Backup + restore | VERIFIED-LOCAL | Real Mongo (20 collections) + Neo4j (129 nodes/257 relationships at time of run) dumped, tarred, restored into scratch targets; canary survived in both. `scripts/backup.sh:37`. | DONE |
 | Dependency pins (pipecat-ai, graphiti-core) | VERIFIED | Exact working versions pinned from `pip freeze` against the venv all of the above ran in. `requirements.txt:54,57` (`pipecat-ai[silero]==1.5.0`, `graphiti-core==0.29.2`). | DONE |
+| Persona / System Prompt | VERIFIED-LOCAL | Friday-style dynamic persona injected correctly via `build_persona_block`. `docs/verification/probes/test_persona_injection.py:34`. | DONE |
+| The Face (Blue Orb) | VERIFIED-LOCAL | Real websocket auth, JSON frame routing, orb state transitions (`idle` -> `listening` -> `thinking` -> `speaking` -> `idle`) and text streaming to the client. Verified via `ws_test.py`. | DONE |
 | Wake Word, Morning/Weather/News, Habits/Reflection, Research (service-level), Offline Sync, Observability | NOT RE-VERIFIED THIS SESSION | Out of scope for the gate-closer session; carrying forward the 2026-07-15 audit's last-known status (BROKEN/STUBBED/MISSING — see PHASE BOARD). | NEEDS A DEDICATED SESSION |
 
 ## DECISIONS-MADE
@@ -62,17 +64,14 @@ Backup/Restore: VERIFIED-LOCAL — real Mongo + Neo4j dump, tarred, restored
   this session and cited above by file:line.
 - Running the core loop for real (not against mocks) surfaced 5 latent
   production bugs that unit tests had mocked past; all root-caused and fixed
-  (see `close2` commit message for the full list): `graph_ltm.initialize()`
-  was never called anywhere; `graph_ltm.py` used a stale graphiti-core API
-  (constructor args, `add_episode`/`search` signatures); Graphiti's default
-  OpenAI dependency was swapped for Gemini (the project's `OPENAI_API_KEY` is
-  a placeholder); `extractor.py` did `if not db_manager.db:`, which crashes
-  against a real Motor connection; `LegacyLLMFactory.get_model()` pointed at
-  a decommissioned Groq model; `db_manager.ObjectId` didn't exist, so
-  `reminder_service`'s trigger/ack calls would `AttributeError` in production.
+  (see `close2` commit message for the full list).
 - A pre-existing test-isolation bug (`test_research_service.py` permanently
   poisoning `sys.modules['backend.app.core.llm_factory']`) was root-caused
   and fixed as part of making `make verify` genuinely green.
+- Decided to stream text directly from `LanguageSplitTTS` in the voice pipeline
+  to the websocket client via a side-channel broadcast, bypassing Pipecat's
+  `BaseOutputTransport` because it drops non-audio frames by default. This
+  enables graceful degradation of the UI even when TTS dependencies are missing.
 
 ## NEXT STEP (exact)
 Re-run G1 boot and the G4 core loop against a deployed/hosted ASTA instance

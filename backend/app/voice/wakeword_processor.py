@@ -29,6 +29,7 @@ class ServerWakeWordConfirmProcessor(FrameProcessor):
         self.oww_model = Model(wakeword_models=["hey_jarvis"], inference_framework="onnx")
 
     async def process_frame(self, frame: Frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
         # We only intercept incoming raw audio from the user
         if direction == FrameDirection.UPSTREAM and isinstance(frame, AudioRawFrame) and not self.has_confirmed:
             if self.is_failed:

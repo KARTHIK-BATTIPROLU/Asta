@@ -1,14 +1,31 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' http://localhost:* ws://localhost:*; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' http://localhost:* ws://localhost:*;">
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASTA Web Client</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Pin Three.js version -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+    <div id="orb-container"></div>
+    
+    <div id="ui-container">
+        <div id="status-display">Disconnected</div>
+        <div id="chat-container">
+            <div id="transcript"></div>
+        </div>
+        <div id="input-container">
+            <input type="text" id="text-input" placeholder="Message ASTA..." autocomplete="off" />
+            <button id="send-btn">Send</button>
+            <button id="mic-btn">🎙️</button>
+        </div>
+    </div>
+
+    <!-- Ensure config is loaded first -->
+    <script src="config.js"></script>
+    <script src="orb.js"></script>
+    <script src="app.js"></script>
+</body>
 </html>
