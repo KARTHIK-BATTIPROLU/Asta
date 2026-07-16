@@ -5,7 +5,7 @@ import base64
 from dotenv import load_dotenv
 
 async def test_client():
-    uri = "ws://127.0.0.1:8000/ws/conversation?token=asta-secure-token-2026&device_id=8b7f3a44d045"
+    uri = "ws://127.0.0.1:8000/ws/conversation?token=asta-super-secret-rot-9938472938472938&device_id=8b7f3a44d045"
     print(f"Connecting to {uri}")
     
     try:
