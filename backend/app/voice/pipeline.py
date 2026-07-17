@@ -66,6 +66,26 @@ class RouterLLMService(LLMService):
             logger.info("[RouterLLMService] Updated system prompt with dynamic memory context.")
             
         elif isinstance(frame, TranscriptionFrame):
+            user_text = (frame.text or "").strip()
+            user_text_lower = user_text.lower()
+
+            # Private mode commands (simple string match, no LLM)
+            if self.session_id and user_text_lower in ("private mode on", "private mode off"):
+                from backend.app.voice.session_store import set_private, clear_private, append_turn
+                if user_text_lower == "private mode on":
+                    await set_private(self.session_id, "no_extract")
+                    reply = "Got it — private mode is on. This chat stays between us."
+                else:
+                    await clear_private(self.session_id)
+                    reply = "Private mode off. I'll remember our chats again."
+                await append_turn(self.session_id, "user", user_text)
+                await append_turn(self.session_id, "assistant", reply)
+                await _emit_orb_state("thinking")
+                await self.push_frame(LLMFullResponseStartFrame(), direction)
+                await self.push_frame(TextFrame(reply), direction)
+                await self.push_frame(LLMFullResponseEndFrame(), direction)
+                return
+
             self.messages.append({"role": "user", "content": frame.text})
             if self.session_id:
                 from backend.app.voice.session_store import append_turn
@@ -88,7 +108,6 @@ class RouterLLMService(LLMService):
                 self._morning_injected = True
 
             # Simple intent check for research
-            user_text_lower = frame.text.lower()
             if any(k in user_text_lower for k in ["look into", "research", "deep dive"]):
                 logger.info("[RouterLLMService] Research intent detected.")
                 # We extract the topic roughly for this simulation
