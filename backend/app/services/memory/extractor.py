@@ -43,13 +43,10 @@ class ExtractionSchema(BaseModel):
     open_loops: List[str]
 
 async def _generate_embedding(text: str) -> List[float]:
-    """Generates an embedding for an insight using a local SentenceTransformer model."""
+    """Generates an embedding using the module-level cached SentenceTransformer."""
     try:
-        # Load lazily to prevent pipeline slowdown
-        from sentence_transformers import SentenceTransformer
-        model = SentenceTransformer("all-MiniLM-L6-v2")
-        embedding = model.encode(text).tolist()
-        return embedding
+        from memory.embeddings import embed
+        return await asyncio.to_thread(embed, text)
     except Exception as e:
         logger.error(f"[Extractor] Failed to generate embedding: {e}")
         return []
@@ -77,8 +74,11 @@ async def process_session_extraction(session_id: str):
         logger.info(f"[Extractor] Session {session_id} is private, skipping extraction.")
         return
 
-    # Build transcript
-    turns = session.get("turns", [])
+    # Build transcript (support both turns[] and legacy messages[])
+    turns = session.get("turns") or [
+        {"role": m.get("role", "user"), "text": m.get("content", m.get("text", ""))}
+        for m in session.get("messages", [])
+    ]
     if not turns:
         logger.info(f"[Extractor] Session {session_id} has no turns, skipping.")
         return

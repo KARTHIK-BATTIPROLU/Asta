@@ -5,6 +5,9 @@ from backend.app.services.memory.extractor import process_session_extraction
 
 logger = logging.getLogger("OutboxWorker")
 
+_worker_task: asyncio.Task | None = None
+
+
 async def run_outbox_worker():
     """Background task to process memory extraction asynchronously."""
     logger.info("Starting Outbox Worker...")
@@ -45,9 +48,30 @@ async def run_outbox_worker():
                     await asyncio.sleep(5)
             else:
                 await asyncio.sleep(5)
+        except asyncio.CancelledError:
+            logger.info("[Outbox] Worker cancelled")
+            raise
         except Exception as e:
             logger.error(f"[Outbox] Worker error: {e}")
             await asyncio.sleep(5)
 
+
 def start_outbox_worker():
-    asyncio.create_task(run_outbox_worker())
+    global _worker_task
+    if _worker_task is not None and not _worker_task.done():
+        logger.info("[Outbox] Worker already running")
+        return
+    _worker_task = asyncio.create_task(run_outbox_worker())
+
+
+async def stop_outbox_worker():
+    global _worker_task
+    if _worker_task is None:
+        return
+    _worker_task.cancel()
+    try:
+        await _worker_task
+    except asyncio.CancelledError:
+        pass
+    _worker_task = None
+    logger.info("[Outbox] Worker stopped")

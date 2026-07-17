@@ -1,6 +1,7 @@
 import base64
 import logging
 import asyncio
+import uuid
 from fastapi import APIRouter, WebSocket
 from pipecat.transports.websocket.fastapi import FastAPIWebsocketTransport, FastAPIWebsocketParams
 from pipecat.pipeline.task import PipelineTask
@@ -72,6 +73,11 @@ async def conversation_ws(websocket: WebSocket):
         logger.warning("[WS] Unauthorized connection rejected (invalid token or device)")
         return
 
+    session_id = str(uuid.uuid4())
+    from backend.app.voice.session_store import create_session
+    await create_session(session_id)
+    logger.info("[WS] Session %s started", session_id)
+
     await websocket.accept()
     _active_connections.add(websocket)
     logger.info("[WS] Client connected (authenticated)")
@@ -89,7 +95,7 @@ async def conversation_ws(websocket: WebSocket):
             )
         )
         
-        pipeline = build_pipeline(transport, trigger=trigger)
+        pipeline = build_pipeline(transport, trigger=trigger, session_id=session_id)
         task = PipelineTask(pipeline)
         
         from pipecat.pipeline.runner import PipelineRunner
@@ -101,4 +107,9 @@ async def conversation_ws(websocket: WebSocket):
         logger.error(f"[WS] Pipeline error: {e}")
     finally:
         _active_connections.discard(websocket)
-        logger.info("[WS] Client disconnected")
+        logger.info("[WS] Client disconnected (session %s)", session_id)
+        try:
+            from backend.app.services.memory.outbox import enqueue_extraction
+            await enqueue_extraction(session_id)
+        except Exception as e:
+            logger.error("[WS] Failed to enqueue extraction for session %s: %s", session_id, e)

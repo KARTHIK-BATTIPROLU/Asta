@@ -335,6 +335,14 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"SessionManager startup failed: {e}")
 
+    # Start outbox worker for async memory extraction
+    try:
+        from backend.app.core.outbox_worker import start_outbox_worker
+        start_outbox_worker()
+        logger.info("Outbox worker started")
+    except Exception as e:
+        logger.warning(f"Outbox worker startup failed: {e}")
+
     # Saga Retry Worker removed in Phase 0
 
     # Initialize Wake Word Detection Service
@@ -505,6 +513,12 @@ async def shutdown_event():
         logger.warning(f"Embedding service shutdown error: {e}")
 
     # Saga drain removed in Phase 0
+    try:
+        from backend.app.core.outbox_worker import stop_outbox_worker
+        await stop_outbox_worker()
+    except Exception as e:
+        logger.warning(f"Outbox worker shutdown error: {e}")
+
     try:
         from backend.app.services.session_manager import SessionManager
         await SessionManager.stop_workers()

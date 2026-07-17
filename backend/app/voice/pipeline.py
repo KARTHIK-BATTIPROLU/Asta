@@ -45,10 +45,11 @@ class VadOrbNotifier(FrameProcessor):
         await self.push_frame(frame, direction)
 
 class RouterLLMService(LLMService):
-    def __init__(self, task: str = "realtime_chat", trigger: str = "manual"):
+    def __init__(self, task: str = "realtime_chat", trigger: str = "manual", session_id: str | None = None):
         super().__init__()
         self.task = task
         self.trigger = trigger
+        self.session_id = session_id
         self.messages = []
         self._morning_injected = False
 
@@ -66,6 +67,9 @@ class RouterLLMService(LLMService):
             
         elif isinstance(frame, TranscriptionFrame):
             self.messages.append({"role": "user", "content": frame.text})
+            if self.session_id:
+                from backend.app.voice.session_store import append_turn
+                await append_turn(self.session_id, "user", frame.text)
             await _emit_orb_state("thinking")
 
             # Inject morning verification on the first turn if trigger is morning_alarm
@@ -97,6 +101,9 @@ class RouterLLMService(LLMService):
                 asyncio.create_task(research_service.run_research(session_id, topic, frame.text))
                 
                 res_text = "I'm digging into that right now. I'll give you updates as I go."
+                if self.session_id:
+                    from backend.app.voice.session_store import append_turn
+                    await append_turn(self.session_id, "assistant", res_text)
                 await self.push_frame(LLMFullResponseStartFrame(), direction)
                 await self.push_frame(TextFrame(res_text), direction)
                 await self.push_frame(LLMFullResponseEndFrame(), direction)
@@ -107,10 +114,16 @@ class RouterLLMService(LLMService):
             try:
                 res = await router.run(self.task, self.messages, temperature=0.7)
                 self.messages.append({"role": "assistant", "content": res.text})
+                if self.session_id:
+                    from backend.app.voice.session_store import append_turn
+                    await append_turn(self.session_id, "assistant", res.text)
                 await self.push_frame(TextFrame(res.text), direction)
             except Exception as e:
                 logger.error(f"RouterLLMService failed: {e}")
                 err = "I am experiencing network issues."
+                if self.session_id:
+                    from backend.app.voice.session_store import append_turn
+                    await append_turn(self.session_id, "assistant", err)
                 await self.push_frame(TextFrame(err), direction)
                 
             await self.push_frame(LLMFullResponseEndFrame(), direction)
@@ -154,7 +167,7 @@ class LanguageSplitTTS(TTSService):
                 yield frame
             await _emit_orb_state("idle")
 
-def build_pipeline(transport, trigger="manual"):
+def build_pipeline(transport, trigger="manual", session_id: str | None = None):
     from pipecat.processors.audio.vad_processor import VADProcessor
     vad = VADProcessor(vad_analyzer=SileroVADAnalyzer())
     stt = GroqWhisperSTT()
@@ -175,7 +188,7 @@ def build_pipeline(transport, trigger="manual"):
         stt,
         reflex,
         memory_injector,
-        RouterLLMService(task="realtime_chat", trigger=trigger),
+        RouterLLMService(task="realtime_chat", trigger=trigger, session_id=session_id),
         aggregator,
         tts,
         transport.output(),
