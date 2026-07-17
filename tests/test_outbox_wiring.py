@@ -32,6 +32,9 @@ async def _ensure_mongo():
     await db_manager.connect()
     if db_manager.db is None:
         pytest.skip("MONGO_URI not configured")
+    # Guard against mock pollution from other tests in the same run
+    if not hasattr(db_manager.db, "sessions"):
+        await db_manager.connect()
 
 
 @pytest.mark.asyncio
