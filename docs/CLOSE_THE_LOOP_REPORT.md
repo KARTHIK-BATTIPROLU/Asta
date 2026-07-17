@@ -14,10 +14,10 @@
 | M2 — Live E2E proof script | **DONE** (script committed) | `edf79ca9` | `scripts/prove_memory_loop.py` created; live run blocked locally (see Open Items) |
 | M3 — Private mode switch | **DONE** | `edf79ca9` | WS commands in `pipeline.py`; `--private` flag in prove script |
 | M4 — Identity & dead-code sweep | **DONE** | `c601e500` | `grep Friday\|Jarvis backend/ frontend/src` → 0 hits; 3 dead files deleted |
-| M5 — Regression + handoff | **DONE** | `TBD` | `docs/RUN_ME_KARTHIK.md`; 7/7 targeted unit tests green |
+| M5 — Regression + handoff | **DONE** | `a56f3bcc` | `docs/RUN_ME_KARTHIK.md`; 7/7 targeted unit tests green |
 | M6 — Server truth | **DONE** (report only) | — | EC2 health curl below; no deploy executed |
 | M7 — Mobile audit | **DONE** | `d43594d` (ASTA_APP) | Secrets moved to `local.properties`; audit below |
-| M8 — This report | **DONE** | `TBD` | You are reading it |
+| M8 — This report | **DONE** | `a56f3bcc` | You are reading it |
 
 ---
 
