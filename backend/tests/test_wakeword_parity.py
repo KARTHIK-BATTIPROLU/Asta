@@ -23,7 +23,7 @@ async def test_wakeword_processor_passes_downstream_on_trigger():
     processor = ServerWakeWordConfirmProcessor(threshold=0.6, buffer_duration_sec=0.1, sample_rate=16000)
     
     # Mock predict
-    processor.oww_model.predict = lambda x: {"hey_jarvis": 0.9}
+    processor.oww_model.predict = lambda x: {"hey_asta": 0.9}
     
     audio_data = b'\x01' * 3200 # 0.1s
     frame = AudioRawFrame(audio=audio_data, sample_rate=16000, num_channels=1)
