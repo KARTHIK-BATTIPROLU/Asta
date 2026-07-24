@@ -310,6 +310,18 @@ class L2Graph:
             logger.error(f"Failed to get all entity names: {e}")
             return []
     
+    async def health_check(self) -> bool:
+        """Check if Neo4j is actually reachable right now."""
+        if not self.driver:
+            return False
+        try:
+            async with self.driver.session() as session:
+                result = await session.run("RETURN 1")
+                await result.consume()
+            return True
+        except Exception:
+            return False
+
     async def disconnect(self) -> None:
         """Close Neo4j driver connection."""
         if self.driver:

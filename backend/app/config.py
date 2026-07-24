@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     MEMORY_TOP_K_SESSIONS: int = 3     # how many past sessions to inject
     MEMORY_CLUSTER_DEPTH: int = 2      # Neo4j traversal depth for clusters
     MEMORY_PREFETCH_ENABLED: bool = True
+
+    # When true, a Graphiti/Neo4j L2 graph memory init failure at startup is
+    # fatal instead of a logged warning. Off by default so local/dev boots
+    # stay degradable; set true in production so ASTA never runs silently
+    # memory-less again.
+    STRICT_MEMORY: bool = False
     
     SESSION_TRANSCRIPT_TTL_DAYS: int = 90  # delete raw transcripts after 90 days
     

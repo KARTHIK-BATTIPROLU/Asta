@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -32,8 +32,11 @@ async def _ensure_mongo():
     await db_manager.connect()
     if db_manager.db is None:
         pytest.skip("MONGO_URI not configured")
-    # Guard against mock pollution from other tests in the same run
-    if not hasattr(db_manager.db, "sessions"):
+    # Guard against mock pollution from other tests in the same run.
+    # hasattr() is useless here: MagicMock/AsyncMock auto-vivify any
+    # attribute access, so hasattr(mock, "sessions") is always True and
+    # never actually detects that db_manager.db has been swapped for a mock.
+    if isinstance(db_manager.db, Mock):
         await db_manager.connect()
 
 

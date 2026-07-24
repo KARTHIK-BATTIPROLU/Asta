@@ -8,7 +8,7 @@ import httpx
 from bs4 import BeautifulSoup
 import asyncio
 from backend.app.core.llm_factory import router
-from backend.app.services.memory_service import memory_service
+from backend.app.services.memory.graph_ltm import graph_ltm
 from backend.app.api.ws_transport import broadcast_message
 
 from backend.app.config import settings
@@ -223,10 +223,9 @@ class ResearchService:
             }
             
             # 4. Memory Service Link
-            await memory_service.store_memory(
-                user_id="karthik",
-                content=f"Deep dive research on {topic}",
-                metadata={"type": "research_node", "topic": topic}
+            await graph_ltm.add_episode(
+                session_id,
+                f"Deep dive research on '{topic}'. Findings: {synthesis[:2000]}",
             )
             
             # 5. Generate <=30s Recap

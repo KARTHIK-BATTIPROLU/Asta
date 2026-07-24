@@ -251,13 +251,26 @@ async def startup_event():
         # Optional: Direct Neo4j Check if defined in registry or memory_handler
         from backend.app.config import settings
         if not settings.NEO4J_URI or not settings.NEO4J_PASSWORD:
+            if settings.STRICT_MEMORY:
+                raise RuntimeError(
+                    "STRICT_MEMORY=1 and Neo4j Aura credentials are missing. "
+                    "Refusing to boot memory-less in production."
+                )
             logger.warning("Degraded Mode Status: Neo4j Aura credentials missing from environment.")
         else:
             from backend.app.services.memory.graph_ltm import graph_ltm
             await graph_ltm.initialize()
             if not graph_ltm.is_initialized:
+                if settings.STRICT_MEMORY:
+                    raise RuntimeError(
+                        "STRICT_MEMORY=1 and Graphiti/Neo4j L2 graph memory failed to initialize. "
+                        "Refusing to boot memory-less in production."
+                    )
                 logger.warning("Degraded Mode Status: Graphiti/Neo4j L2 graph memory failed to initialize.")
     except Exception as e:
+        if settings.STRICT_MEMORY:
+            logger.critical(f"STRICT_MEMORY=1: Startup Terminated, memory layer failed to bind: {e}")
+            raise
         logger.error(f"Degraded Mode Status: Failed to bind critical Polyglot Persistence endpoints! {e}")
     
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")

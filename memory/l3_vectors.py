@@ -267,9 +267,19 @@ class L3Vectors:
             
             await asyncio.to_thread(_delete)
             logger.info(f"Deleted vector for session {session_id}")
-            
+
         except Exception as e:
             logger.error(f"Failed to delete vector {session_id}: {e}")
+
+    async def health_check(self) -> bool:
+        """Check if Pinecone is actually reachable right now."""
+        if not self.index:
+            return False
+        try:
+            await asyncio.to_thread(self.index.describe_index_stats)
+            return True
+        except Exception:
+            return False
 
 # Export singleton
 l3_vectors = L3Vectors()

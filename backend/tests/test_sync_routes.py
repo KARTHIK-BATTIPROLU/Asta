@@ -1,10 +1,6 @@
 import pytest
 from unittest.mock import patch, AsyncMock
 
-# Mock db_manager early
-import sys
-sys.modules["backend.app.db.database"] = AsyncMock()
-
 from backend.app.api.sync_routes import sync_offline_items, SyncRequest, SyncItem
 
 @pytest.fixture

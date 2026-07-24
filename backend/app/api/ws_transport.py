@@ -97,7 +97,12 @@ async def conversation_ws(websocket: WebSocket):
         
         pipeline = build_pipeline(transport, trigger=trigger, session_id=session_id)
         task = PipelineTask(pipeline)
-        
+
+        @transport.event_handler("on_client_disconnected")
+        async def on_client_disconnected(transport, client):
+            logger.info("[WS] on_client_disconnected fired (session %s)", session_id)
+            await task.cancel()
+
         from pipecat.pipeline.runner import PipelineRunner
         runner = PipelineRunner()
         logger.info("[WS] Starting Pipecat PipelineTask via Runner")

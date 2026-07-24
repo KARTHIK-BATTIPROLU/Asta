@@ -10,7 +10,6 @@ import sys
 _MOCKED_MODULES = [
     "backend.app.api.ws_transport",
     "backend.app.core.llm_factory",
-    "backend.app.services.memory_service",
 ]
 _original_modules = {name: sys.modules.get(name) for name in _MOCKED_MODULES}
 for _name in _MOCKED_MODULES:
@@ -30,8 +29,8 @@ def mock_router():
         yield mock
 
 @pytest.fixture
-def mock_memory_service():
-    with patch("backend.app.services.research_service.memory_service") as mock:
+def mock_graph_ltm():
+    with patch("backend.app.services.research_service.graph_ltm") as mock:
         yield mock
 
 @pytest.fixture
@@ -45,32 +44,33 @@ def mock_broadcast():
         yield mock
 
 @pytest.mark.asyncio
-async def test_run_research(mock_router, mock_memory_service, mock_deep_research, mock_broadcast):
+async def test_run_research(mock_router, mock_graph_ltm, mock_deep_research, mock_broadcast):
     # Mock deep research fetching
     mock_deep_research.return_value = {
         "sources": [
             {"title": "Doc 1", "url": "http://test.com", "content": "Content"}
         ]
     }
-    
+
     # Mock LLM for map-reduce
     mock_llm_res = MagicMock()
     mock_llm_res.text = "Synthesized claims."
     mock_router.run = AsyncMock(return_value=mock_llm_res)
-    
+
     # Mock memory
-    mock_memory_service.store_memory = AsyncMock()
-    
+    mock_graph_ltm.add_episode = AsyncMock()
+
     session_id = "test_session_1"
     recap = await research_service.run_research(session_id, "test topic", "test idea")
-    
+
     # Verify Recap
     assert recap == "Synthesized claims."
-    
+
     # Verify memory stored
-    mock_memory_service.store_memory.assert_called_once()
-    args, kwargs = mock_memory_service.store_memory.call_args
-    assert kwargs["metadata"]["type"] == "research_node"
+    mock_graph_ltm.add_episode.assert_called_once()
+    args, kwargs = mock_graph_ltm.add_episode.call_args
+    assert args[0] == session_id
+    assert "test topic" in args[1]
     
     # Verify Active Session
     assert session_id in research_service.active_sessions

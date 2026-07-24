@@ -110,16 +110,21 @@ class RouterLLMService(LLMService):
             # Simple intent check for research
             if any(k in user_text_lower for k in ["look into", "research", "deep dive"]):
                 logger.info("[RouterLLMService] Research intent detected.")
-                # We extract the topic roughly for this simulation
-                topic = frame.text
-                from backend.app.services.research_service import research_service
-                import uuid
-                import asyncio
-                session_id = str(uuid.uuid4())
-                # Spawn background research task
-                asyncio.create_task(research_service.run_research(session_id, topic, frame.text))
-                
-                res_text = "I'm digging into that right now. I'll give you updates as I go."
+                try:
+                    # We extract the topic roughly for this simulation
+                    topic = frame.text
+                    from backend.app.services.research_service import research_service
+                    import uuid
+                    import asyncio
+                    session_id = str(uuid.uuid4())
+                    # Spawn background research task
+                    asyncio.create_task(research_service.run_research(session_id, topic, frame.text))
+
+                    res_text = "I'm digging into that right now. I'll give you updates as I go."
+                except Exception as e:
+                    logger.error(f"[RouterLLMService] Failed to start research task: {e}")
+                    res_text = "Boss, I couldn't kick off that research right now -- something's broken on my end."
+
                 if self.session_id:
                     from backend.app.voice.session_store import append_turn
                     await append_turn(self.session_id, "assistant", res_text)

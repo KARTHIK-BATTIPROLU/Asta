@@ -107,23 +107,46 @@ async def process_session_extraction(session_id: str):
     formatted_prompt = prompt.format(transcript=transcript, weights=weights)
     
     try:
-        # LLM extraction
-        llm = llm_factory.get_model("extraction")
-        # Ensure we use structured output or simple json mode
-        try:
-            model = llm.with_structured_output(ExtractionSchema)
-            result = await model.ainvoke(formatted_prompt)
-        except Exception as structure_err:
-            logger.warning(f"[Extractor] Structured output failed, falling back to JSON parser: {structure_err}")
-            # Fallback for models without strict structured output (e.g. Groq llama3)
-            raw_result = await llm.ainvoke(formatted_prompt)
-            result_json = raw_result.content
-            # Clean up markdown code blocks if present
-            if "```json" in result_json:
-                result_json = result_json.split("```json")[1].split("```")[0].strip()
-            result_dict = json.loads(result_json)
-            result = ExtractionSchema(**result_dict)
-        
+        # LLM extraction. Groq's structured-output calls have been observed to
+        # return a fully-empty schema for a plainly extractable transcript on
+        # ~2 of 3 identical calls even at temperature=0 -- an inference-layer
+        # flakiness, not a prompt or determinism bug we can tune away. Retry a
+        # couple of times before accepting an all-empty result as final.
+        max_attempts = 3
+        result = None
+        for attempt in range(1, max_attempts + 1):
+            llm = llm_factory.get_model("extraction")
+            # Ensure we use structured output or simple json mode
+            try:
+                model = llm.with_structured_output(ExtractionSchema)
+                result = await model.ainvoke(formatted_prompt)
+            except Exception as structure_err:
+                logger.warning(f"[Extractor] Structured output failed, falling back to JSON parser: {structure_err}")
+                # Fallback for models without strict structured output (e.g. Groq llama3)
+                raw_result = await llm.ainvoke(formatted_prompt)
+                result_json = raw_result.content
+                # Clean up markdown code blocks if present
+                if "```json" in result_json:
+                    result_json = result_json.split("```json")[1].split("```")[0].strip()
+                result_dict = json.loads(result_json)
+                result = ExtractionSchema(**result_dict)
+
+            is_empty = not (
+                result.insights or result.priority_signals
+                or result.contradictions or result.open_loops
+            )
+            if not is_empty or attempt == max_attempts:
+                if is_empty and attempt == max_attempts:
+                    logger.warning(
+                        f"[Extractor] All-empty extraction for session {session_id} "
+                        f"after {max_attempts} attempts; accepting as final."
+                    )
+                break
+            logger.warning(
+                f"[Extractor] Empty extraction for session {session_id} on attempt "
+                f"{attempt}/{max_attempts}; retrying."
+            )
+
         # We got valid Pydantic extraction
         insights = result.insights
         

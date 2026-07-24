@@ -54,7 +54,7 @@ async def test_persona_injection_real_wire():
         system_prompt = call_1_args[0].system_prompt
         
         # Check for persona marker
-        assert "You are ASTA, Karthik's personal assistant" in system_prompt, "Persona marker line not found in assembled prompt"
+        assert "You are ASTA, Karthik's personal AI assistant" in system_prompt, "Persona marker line not found in assembled prompt"
         
         # Check for the recalled fact
         assert fact_text in system_prompt, (

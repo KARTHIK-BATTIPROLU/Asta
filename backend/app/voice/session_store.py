@@ -1,10 +1,12 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from backend.app.db.database import db_manager
 
 logger = logging.getLogger("SessionStore")
+
+STALE_SESSION_MINUTES = 15
 
 
 async def create_session(session_id: str) -> bool:
@@ -96,3 +98,41 @@ async def clear_private(session_id: str) -> bool:
         {"$unset": {"private": ""}},
     )
     return result.matched_count > 0
+
+
+async def sweep_stale_sessions() -> int:
+    """Close voice sessions that never got a clean WS disconnect (crashed
+    process, dropped network) and enqueue them for extraction. Safety net
+    for the normal on_client_disconnected path in ws_transport.py.
+
+    Scoped to documents with a `turns` field (this schema) to avoid
+    touching the legacy `messages`/`workflow_type` session docs that share
+    this collection.
+    """
+    if db_manager.db is None:
+        return 0
+
+    from backend.app.services.memory.outbox import enqueue_extraction
+
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=STALE_SESSION_MINUTES)
+    sessions = db_manager.db["sessions"]
+    swept = 0
+    cursor = sessions.find({
+        "status": "active",
+        "turns": {"$exists": True},
+        "$or": [
+            {"updated_at": {"$lt": cutoff}},
+            {"updated_at": {"$exists": False}, "started_at": {"$lt": cutoff}},
+        ],
+    })
+    async for doc in cursor:
+        session_id = doc["session_id"]
+        await sessions.update_one(
+            {"_id": doc["_id"]},
+            {"$set": {"status": "closed", "closed_at": datetime.now(timezone.utc), "closed_by": "sweeper"}},
+        )
+        await enqueue_extraction(session_id)
+        swept += 1
+    if swept:
+        logger.warning("[SessionStore] Sweeper closed %s stale session(s)", swept)
+    return swept

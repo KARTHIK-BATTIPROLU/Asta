@@ -1,10 +1,12 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from backend.app.db.database import db_manager
 from backend.app.voice.session_store import count_user_turns, get_private_flag
 
 logger = logging.getLogger("Outbox")
+
+STALE_PROCESSING_MINUTES = 10
 
 
 async def enqueue_extraction(session_id: str) -> bool:
@@ -36,12 +38,40 @@ async def enqueue_extraction(session_id: str) -> bool:
         logger.info("[Outbox] Pending extract task already exists for session %s", session_id)
         return False
 
+    now = datetime.now(timezone.utc)
     await outbox.insert_one({
         "kind": "extract",
         "status": "pending",
         "payload": {"session_id": session_id},
-        "ts": datetime.now(timezone.utc),
+        "ts": now,
+        "updated_at": now,
         "attempts": 0,
     })
     logger.info("[Outbox] Enqueued extraction for session %s", session_id)
     return True
+
+
+async def reclaim_stale_outbox_tasks() -> int:
+    """Reset outbox tasks stuck in 'processing' back to 'pending' (respecting
+    the 3-strikes -> failed limit). Recovers tasks orphaned by a worker
+    process that died mid-extraction, since nothing else ever revisits them.
+    """
+    if db_manager.db is None:
+        return 0
+
+    outbox = db_manager.db["outbox"]
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=STALE_PROCESSING_MINUTES)
+    reclaimed = 0
+    async for task in outbox.find({"status": "processing", "updated_at": {"$lt": cutoff}}):
+        attempts = task.get("attempts", 0) + 1
+        status = "failed" if attempts >= 3 else "pending"
+        await outbox.update_one(
+            {"_id": task["_id"]},
+            {"$set": {"status": status, "attempts": attempts, "updated_at": datetime.now(timezone.utc)}},
+        )
+        reclaimed += 1
+        logger.warning(
+            "[Outbox] Reclaimed stale processing task %s -> %s (attempts=%s)",
+            task["_id"], status, attempts,
+        )
+    return reclaimed

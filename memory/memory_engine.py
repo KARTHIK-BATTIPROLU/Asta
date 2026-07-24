@@ -420,13 +420,21 @@ class MemoryEngine:
     # ═══ HEALTH CHECK ════════════════════════════════════════════════════
     
     async def health_check(self) -> Dict:
-        """Check health of all memory layers."""
+        """Check health of all memory layers with a real live ping each --
+        never assume a layer is healthy just because connect_all() didn't
+        raise at startup (a dependency can die or become unreachable later)."""
         try:
+            l1, l2, l3, l4 = await asyncio.gather(
+                l1_cache.health_check(),
+                l2_graph.health_check(),
+                l3_vectors.health_check(),
+                l4_store.health_check(),
+            )
             return {
-                "l1_redis": await l1_cache.health_check(),
-                "l2_neo4j": True,  # If connect worked, assume healthy
-                "l3_pinecone": True,
-                "l4_mongodb": True,
+                "l1_redis": l1,
+                "l2_neo4j": l2,
+                "l3_pinecone": l3,
+                "l4_mongodb": l4,
                 "prefetch_queue_size": prefetch_engine.get_queue_size()
             }
         except Exception as e:

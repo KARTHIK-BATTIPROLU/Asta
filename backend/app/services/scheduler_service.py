@@ -8,6 +8,7 @@ from datetime import datetime, timezone, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +107,15 @@ class SchedulerService:
             id="self_test",
             replace_existing=True
         )
-        
+        # Memory heartbeat: sweep stale open sessions every 10 min, safety
+        # net for the normal on_client_disconnected extraction trigger.
+        self.scheduler.add_job(
+            self._trigger_memory_sweep,
+            IntervalTrigger(minutes=10),
+            id="memory_sweep",
+            replace_existing=True
+        )
+
         self.scheduler.start()
         logger.info(
             "Scheduler started: morning alarm 5:30 AM IST, "
@@ -274,6 +283,16 @@ class SchedulerService:
                 logger.info("[Self-Test] All expected jobs ran yesterday. System healthy.")
         except Exception as e:
             logger.error(f"Self-test failed: {e}")
+
+    async def _trigger_memory_sweep(self):
+        await self._log_job_run("memory_sweep")
+        try:
+            from backend.app.voice.session_store import sweep_stale_sessions
+            swept = await sweep_stale_sessions()
+            if swept:
+                logger.info(f"SCHEDULER: Memory sweep closed {swept} stale session(s)")
+        except Exception as e:
+            logger.error(f"Memory sweep failed: {e}")
 
     async def _log_job_run(self, job_id: str):
         try:
