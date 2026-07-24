@@ -4,7 +4,10 @@ import './App.css';
 import AstaOrb from './orb/AstaOrb';
 
 // CSP-compliant WebSocket URL configuration
-const WS_TOKEN = import.meta.env.VITE_ASTA_API_TOKEN || "asta-super-secret-rot-9938472938472938";
+const WS_TOKEN = import.meta.env.VITE_ASTA_API_TOKEN;
+if (!WS_TOKEN) {
+  throw new Error('VITE_ASTA_API_TOKEN is not set. Add it to frontend/.env.local (see .env.example).');
+}
 const WS_DEVICE_ID = import.meta.env.VITE_ASTA_DEVICE_ID || "asta-web-client";
 const WS_HOST = import.meta.env.VITE_ASTA_WS_HOST || "ws://localhost:8000";
 const WS_BASE_URL = `${WS_HOST}/ws/conversation?token=${encodeURIComponent(WS_TOKEN)}&device_id=${encodeURIComponent(WS_DEVICE_ID)}`;
