@@ -351,8 +351,7 @@ async def startup_event():
     # Initialize Wake Word Detection Service
     try:
         from backend.app.services.wake_word_service import initialize_wake_word_service
-        from backend.app.config import settings
-        
+
         if settings.WAKE_WORD_ENABLED:
             wake_word_service = initialize_wake_word_service(
                 wake_words=settings.WAKE_WORD_MODELS.split(","),
