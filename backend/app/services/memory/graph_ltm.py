@@ -46,29 +46,26 @@ class GraphLTMManager:
 
     async def initialize(self):
 
-        neo4j_uri = getattr(settings, "NEO4J_URI", None)
-        neo_user = getattr(settings, "NEO4J_USERNAME", None)
-        neo_pass = getattr(settings, "NEO4J_PASSWORD", None)
-
-        if not all([neo4j_uri, neo_user, neo_pass]):
-            logger.warning("[GraphLTM] Neo4j Aura credentials missing. Skipping L2 Graph Init.")
-            return
+        falkor_host = getattr(settings, "FALKORDB_HOST", "localhost")
+        falkor_port = getattr(settings, "FALKORDB_PORT", 6379)
+        falkor_user = getattr(settings, "FALKORDB_USERNAME", None)
+        falkor_pass = getattr(settings, "FALKORDB_PASSWORD", None)
+        falkor_db = getattr(settings, "FALKORDB_DATABASE", "asta_graph")
 
         try:
-            # graphiti-core 0.29.x requires uri/user/password as constructor args --
-            # it does not read NEO4J_URI/NEO4J_USER/NEO4J_PASSWORD env vars itself.
-            # It also defaults to OpenAI for LLM/embedding/reranking; this project
-            # is Groq-first and doesn't carry a real OpenAI key, so wire Graphiti
-            # to Gemini instead (already configured for this project). Groq was
-            # tried for the LLM client first, but Graphiti's entity/edge
-            # extraction prompt runs ~18-19k tokens per call, which exceeds this
-            # account's free-tier TPM cap on EVERY Groq model available (12k on
-            # llama-3.3-70b-versatile, 6k on llama-3.1-8b-instant) -- a platform
-            # rate-limit ceiling, not something a different Groq model fixes.
+            from graphiti_core.driver.falkordb_driver import FalkorDriver
             from graphiti_core.llm_client.gemini_client import GeminiClient
             from graphiti_core.llm_client.config import LLMConfig
             from graphiti_core.embedder.gemini import GeminiEmbedder, GeminiEmbedderConfig
             from graphiti_core.cross_encoder.gemini_reranker_client import GeminiRerankerClient
+
+            driver = FalkorDriver(
+                host=falkor_host,
+                port=int(falkor_port),
+                username=falkor_user,
+                password=falkor_pass,
+                database=falkor_db,
+            )
 
             llm_client = GeminiClient(config=LLMConfig(
                 api_key=settings.GEMINI_API_KEY, model="gemini-2.5-flash",
@@ -79,21 +76,12 @@ class GraphLTMManager:
             cross_encoder = GeminiRerankerClient(config=LLMConfig(api_key=settings.GEMINI_API_KEY))
 
             self.client = Graphiti(
-                uri=neo4j_uri, user=neo_user, password=neo_pass,
+                graph_driver=driver,
                 llm_client=llm_client, embedder=embedder, cross_encoder=cross_encoder,
             )
 
-            # Register custom nodes (Graphiti extracts these automatically from text)
-            # self.client.register_node_type(Priority)
-            # self.client.register_node_type(Rule)
-            # self.client.register_node_type(Contradiction)
-            # self.client.register_node_type(Goal)
-            # self.client.register_node_type(Project)
-            # self.client.register_node_type(Person)
-            # self.client.register_node_type(Idea)
-
             self.is_initialized = True
-            logger.info("[GraphLTM] Graphiti initialized with Neo4j (Groq LLM + Gemini embedder/reranker).")
+            logger.info(f"[GraphLTM] Graphiti initialized with FalkorDB on {falkor_host}:{falkor_port}.")
         except Exception as e:
             logger.error(f"[GraphLTM] Failed to initialize Graphiti: {e}")
             self.is_initialized = False

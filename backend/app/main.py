@@ -248,25 +248,15 @@ async def startup_event():
         if not health:
              logger.warning("Degraded Mode Status: Database Health Check Failed! Some systems may run offline.")
              
-        # Optional: Direct Neo4j Check if defined in registry or memory_handler
-        from backend.app.config import settings
-        if not settings.NEO4J_URI or not settings.NEO4J_PASSWORD:
+        from backend.app.services.memory.graph_ltm import graph_ltm
+        await graph_ltm.initialize()
+        if not graph_ltm.is_initialized:
             if settings.STRICT_MEMORY:
                 raise RuntimeError(
-                    "STRICT_MEMORY=1 and Neo4j Aura credentials are missing. "
+                    "STRICT_MEMORY=1 and FalkorDB graph memory is uninitialized. "
                     "Refusing to boot memory-less in production."
                 )
-            logger.warning("Degraded Mode Status: Neo4j Aura credentials missing from environment.")
-        else:
-            from backend.app.services.memory.graph_ltm import graph_ltm
-            await graph_ltm.initialize()
-            if not graph_ltm.is_initialized:
-                if settings.STRICT_MEMORY:
-                    raise RuntimeError(
-                        "STRICT_MEMORY=1 and Graphiti/Neo4j L2 graph memory failed to initialize. "
-                        "Refusing to boot memory-less in production."
-                    )
-                logger.warning("Degraded Mode Status: Graphiti/Neo4j L2 graph memory failed to initialize.")
+            logger.warning("Degraded Mode Status: FalkorDB Graph Memory uninitialized.")
     except Exception as e:
         if settings.STRICT_MEMORY:
             logger.critical(f"STRICT_MEMORY=1: Startup Terminated, memory layer failed to bind: {e}")
