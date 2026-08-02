@@ -55,21 +55,22 @@ except ImportError:
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting ASTA backend services...")
-    registry.initialize()
-    
-    # Start Scheduler and Accountability Monitor
-    from backend.app.services.scheduler_service import scheduler_service
-    scheduler_service.start()
-    
+
+    # NOTE: passing lifespan= to FastAPI() suppresses the framework's implicit
+    # on_event-derived lifespan, so startup_event()/shutdown_event() below
+    # (db, redis, embeddings, scheduler-with-callbacks, ...) must be invoked
+    # explicitly or they never run.
+    await startup_event()
+
+    # Accountability monitor scheduling
     from backend.app.workflows.accountability_monitor import monitor
     monitor.schedule_next()
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down ASTA backend services...")
-    await registry.shutdown()
-    scheduler_service.stop()
+    await shutdown_event()
     logger.info("Backend shutdown complete.")
 
 app = FastAPI(

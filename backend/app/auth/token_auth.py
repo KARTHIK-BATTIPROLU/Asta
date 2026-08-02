@@ -50,11 +50,13 @@ async def verify_bearer_and_device(
         raise HTTPException(status_code=403, detail="Unauthorized device ID")
         
     # Update last_seen asynchronously in background
-    asyncio.create_task(collection.update_one(
-        {"_id": registered["_id"]},
-        {"$set": {"last_seen": datetime.now(timezone.utc)}}
-    ))
-    
+    async def _touch_last_seen():
+        await collection.update_one(
+            {"_id": registered["_id"]},
+            {"$set": {"last_seen": datetime.now(timezone.utc)}}
+        )
+    asyncio.create_task(_touch_last_seen())
+
     return authorization.credentials
 
 async def verify_ws_token_and_device(websocket: WebSocket) -> bool:
@@ -86,9 +88,11 @@ async def verify_ws_token_and_device(websocket: WebSocket) -> bool:
         return False
         
     # Update last_seen asynchronously in background
-    asyncio.create_task(collection.update_one(
-        {"_id": registered["_id"]},
-        {"$set": {"last_seen": datetime.now(timezone.utc)}}
-    ))
-    
+    async def _touch_last_seen():
+        await collection.update_one(
+            {"_id": registered["_id"]},
+            {"$set": {"last_seen": datetime.now(timezone.utc)}}
+        )
+    asyncio.create_task(_touch_last_seen())
+
     return True

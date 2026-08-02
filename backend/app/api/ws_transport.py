@@ -40,6 +40,22 @@ async def broadcast_message(payload: dict):
             dead.add(ws)
     _active_connections.difference_update(dead)
 
+
+async def synthesize_proactive_audio_b64(text: str) -> str | None:
+    """Synthesize TTS audio for out-of-band proactive messages (nags,
+    reminders, night planning) and return it as a base64 string, or None
+    on failure. Used where there is no live WS turn to stream PCM over."""
+    try:
+        chunks = bytearray()
+        async for chunk in synthesize_speech_stream(text):
+            chunks.extend(chunk)
+        if not chunks:
+            return None
+        return base64.b64encode(bytes(chunks)).decode("ascii")
+    except Exception as e:
+        logger.error(f"[WS] synthesize_proactive_audio_b64 failed: {e}")
+        return None
+
 from backend.app.api.turn_processor import TurnContext, TurnProcessor, broadcast_error
 @router.websocket("/ws/conversation")
 async def conversation_ws(websocket: WebSocket):
