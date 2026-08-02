@@ -1,0 +1,20 @@
+name: Deploy ASTA Backend to AWS EC2
+
+on:
+  push:
+    branches:
+      - face-and-soul
+
+jobs:
+  deploy:
+    name: Deploy to AWS EC2 via SSH
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger remote deployment script over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            bash /home/ubuntu/deploy.sh
