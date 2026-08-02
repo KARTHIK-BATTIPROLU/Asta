@@ -98,7 +98,7 @@ The ASTA Notion integration is now fully operational and ready for production us
 ### Environment Variables (.env)
 
 ```bash
-NOTION_API_KEY=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
+NOTION_API_KEY=ntn_REDACTED
 NOTION_ROUTINE_DB=c688a60c-80fb-4080-b51c-5085c1f55081
 NOTION_RESEARCH_DB=99614dfb8a6f4d93bf5018d76ce0925d
 NOTION_CONTENT_DB=34a337e7-5d17-81df-8e4e-cb6406aaeac9

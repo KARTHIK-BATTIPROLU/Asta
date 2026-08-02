@@ -104,7 +104,7 @@ The Notion integration code is **structurally sound** but has **critical configu
 ### ❌ `.env` FILE — CRITICAL ISSUES
 
 **Notion API Key:**
-- ✅ `NOTION_API_KEY=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`
+- ✅ `NOTION_API_KEY=ntn_REDACTED`
 - ✅ Valid format (starts with `ntn_`)
 - ✅ Authentication works (tested successfully)
 

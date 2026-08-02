@@ -55,7 +55,7 @@ Test ASTA's Notion integration against the **real Notion workspace** with **no m
 
 #### Live Connection Tests
 - ✅ **Authentication Test**
-  - API key valid: `ntn_138228114152...`
+  - API key valid: `ntn_REDACTED`
   - Successfully connected to workspace: "ASTA"
   - Bot user retrieved successfully
 
