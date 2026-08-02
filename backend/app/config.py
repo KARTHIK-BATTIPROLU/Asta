@@ -1,5 +1,6 @@
 import os
 import logging
+from typing import Optional
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 
@@ -22,6 +23,11 @@ class Settings(BaseSettings):
     NEO4J_USERNAME: str = "neo4j"
     NEO4J_PASSWORD: str = ""
     NEO4J_DATABASE: str = "neo4j"
+    FALKORDB_HOST: str = "localhost"
+    FALKORDB_PORT: int = 6379
+    FALKORDB_USERNAME: Optional[str] = None
+    FALKORDB_PASSWORD: Optional[str] = None
+    FALKORDB_DATABASE: str = "asta_graph"
     ANTHROPIC_API_KEY: str = ""
     OPENWEATHER_API_KEY: str = ""
     GEMINI_API_KEY: str = ""

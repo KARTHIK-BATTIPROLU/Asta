@@ -146,7 +146,7 @@ async def dump_artifacts(session_id: str, keyword: str) -> None:
             results = await graph_ltm.search(keyword)
             log(f"graph_ltm.search({keyword!r}): {results[:3] if results else '[]'}")
         else:
-            log("graph_ltm not initialized (Neo4j unavailable)")
+            log("graph_ltm not initialized (FalkorDB unavailable)")
     except Exception as e:
         log(f"graph_ltm.search skipped: {e}")
 
