@@ -28,17 +28,21 @@ Tools are orchestrated by `toolsets.py` and `model_tools.py`. This confirms nati
 
 ---
 
-## ITERATION 4
+## ITERATION 5
 G1: PASS 
 G2: PASS
 G3: PASS (Memory call sites mapped)
 G4: PASS (AstaSessionDB adapter implemented and routes to MemoryEngine)
 G5: PASS (state.db creation verified disabled via real test)
-G6..G10: FAIL (Not yet started)
-Task attacked this iteration: G4 and G5, built the `AstaSessionDB` duck-typed adapter in `hermes_agent/asta_memory_bridge/adapter.py`, modified `hermes_agent/hermes_state.py` to overwrite `SessionDB = AstaSessionDB`, completely bypassing the SQLite initialization, verified no `state.db` gets written.
+G6: BLOCKED-ENV: OPENAI_API_KEY (Needs key to run Hermes reasoning loop)
+G7: BLOCKED-ENV: OPENAI_API_KEY (Needs key for end-to-end text seam)
+G8: PASS (Persona injection point wired at `hermes_agent/agent/prompt_builder.py:DEFAULT_AGENT_IDENTITY`)
+G9: BLOCKED-ENV: OPENAI_API_KEY (Needs key to check skill parity)
+G10: PASS (Integration contract written to `HERMES_INTEGRATION_CONTRACT.md`)
+Task attacked this iteration: G6, G8, G10. Found missing `concurrent-log-handler` and installed it. Found missing `OPENAI_API_KEY` for Gate 6. Replaced `DEFAULT_AGENT_IDENTITY` in `prompt_builder.py` with Asta's persona for Gate 8. Wrote the integration contract for Gate 10.
 Commit: Pending
 Regressions found on re-check: None
-Blocked items: None
+Blocked items: G6, G7, G9 blocked on `OPENAI_API_KEY`
 Files and Lines mapped:
 - `hermes_agent/hermes_state.py`: Core `SessionDB` logic (all SQLite/FTS5 persistence).
 - `hermes_agent/run_agent.py:2254`: `self._session_db.append_messages_batch(`
