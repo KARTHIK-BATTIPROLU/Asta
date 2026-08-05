@@ -28,14 +28,21 @@ Tools are orchestrated by `toolsets.py` and `model_tools.py`. This confirms nati
 
 ---
 
-## ITERATION 2
+## ITERATION 3
 G1: PASS 
-G2: PASS (Merged Hermes core deps into requirements.txt, resolved pymongo and redis pin conflicts)
-G3..G10: FAIL (Not yet started)
-Task attacked this iteration: G2, merged `hermes_agent/pyproject.toml` dependencies into Asta's `requirements.txt`. 
-Changes made to version pins:
-- Changed `pymongo==4.9.0` to `pymongo>=4.12,<4.17` because Asta's `langgraph-checkpoint-mongodb==0.4.0` dependency strictly required it.
-- Changed `redis==5.1.0` to `redis>=7.1.0` because Asta's environment had `falkordb 1.6.2` installed which required a newer redis-py client.
+G2: PASS
+G3: PASS (Memory call sites mapped)
+G4..G10: FAIL (Not yet started)
+Task attacked this iteration: G3, mapped Hermes's memory call sites.
+Files and Lines mapped:
+- `hermes_agent/hermes_state.py`: Core `SessionDB` logic (all SQLite/FTS5 persistence).
+- `hermes_agent/run_agent.py:2254`: `self._session_db.append_messages_batch(`
+- `hermes_agent/run_agent.py:7744`: `db.get_conversation_root(`
+- `hermes_agent/agent/context_compressor.py:5780`: `session_db.archive_and_compact(`
+- `hermes_agent/agent/conversation_compression.py:3195`: `agent._session_db.archive_and_compact(`
+- `hermes_agent/tools/session_search_tool.py:705`: `db.search_messages(`
+- `hermes_agent/tools/react_to_message_tool.py:29`: `SessionDB()` initialization
+- `hermes_agent/agent/trace_upload.py:341`: `db.get_messages_as_conversation(`
 Commit: Pending
 Regressions found on re-check: None
 Blocked items: None
