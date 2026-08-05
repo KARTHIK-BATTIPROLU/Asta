@@ -1,15 +1,15 @@
-fastapi
-uvicorn
-pymongo==4.9.0
+fastapi>=0.104.0,<1
+uvicorn[standard]>=0.24.0,<1
+pymongo>=4.12,<4.17
 motor
-python-dotenv
-httpx
-requests
+python-dotenv==1.2.2
+httpx[socks]==0.28.1
+requests==2.33.0
 dateparser
 pytz
 deepgram-sdk>=6.0.1,<7.0.0
-python-multipart
-websockets>=10.0
+python-multipart>=0.0.9,<1
+websockets==15.0.1
 # AI
 langchain
 langgraph
@@ -26,7 +26,7 @@ google-generativeai
 sentence-transformers
 pinecone
 rapidfuzz
-redis==5.1.0
+redis>=7.1.0
 hiredis==3.0.0
 celery
 tiktoken
@@ -41,7 +41,7 @@ beautifulsoup4
 gspread
 apscheduler
 notion-client
-openai
+openai==2.24.0
 
 # LangGraph checkpointers (Postgres optional; MongoDB used by default via MONGO_URI)
 langgraph-checkpoint-postgres
@@ -53,3 +53,29 @@ langgraph-checkpoint-mongodb==0.4.0
 firebase-admin
 pipecat-ai
 edge-tts
+
+# Hermes Agent Core
+certifi==2026.5.20
+fire==0.7.1
+rich==14.3.3
+tenacity==9.1.4
+pyyaml==6.0.3
+ruamel.yaml==0.18.17
+jinja2==3.1.6
+pydantic==2.13.4
+prompt_toolkit==3.0.52
+croniter==6.0.0
+packaging==26.0
+Markdown==3.10.2
+PyJWT[crypto]==2.13.0
+urllib3>=2.7.0,<3
+cryptography==48.0.1
+tzdata==2025.3; sys_platform == 'win32'
+psutil==7.2.2
+pathspec==1.1.1
+ptyprocess>=0.7.0,<1; sys_platform != 'win32'
+pywinpty>=2.0.0,<3; sys_platform == 'win32'
+pywin32>=306,<312; sys_platform == 'win32'
+Pillow==12.3.0
+concurrent-log-handler==0.9.29; sys_platform == 'win32'
+nemo-relay>=0.6.0,<0.7; (sys_platform == 'darwin' and platform_machine == 'arm64') or (sys_platform == 'linux' and platform_machine == 'x86_64' and 'android' not in platform_release) or (sys_platform == 'linux' and platform_machine == 'aarch64' and 'android' not in platform_release) or (sys_platform == 'win32' and platform_machine == 'AMD64') or (sys_platform == 'win32' and platform_machine == 'ARM64')

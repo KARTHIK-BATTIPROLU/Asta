@@ -28,10 +28,14 @@ Tools are orchestrated by `toolsets.py` and `model_tools.py`. This confirms nati
 
 ---
 
-## ITERATION 1
-G1: PASS (python -c "import sys, os; sys.path.insert(0, os.path.abspath('hermes_agent')); from run_agent import AIAgent; print('Success')" => Success)
-G2..G10: FAIL (Not yet started)
-Task attacked this iteration: G1, vendored Hermes Agent as a directory (`hermes_agent`), removed `.git` to keep history clean, added `__init__.py`. 
+## ITERATION 2
+G1: PASS 
+G2: PASS (Merged Hermes core deps into requirements.txt, resolved pymongo and redis pin conflicts)
+G3..G10: FAIL (Not yet started)
+Task attacked this iteration: G2, merged `hermes_agent/pyproject.toml` dependencies into Asta's `requirements.txt`. 
+Changes made to version pins:
+- Changed `pymongo==4.9.0` to `pymongo>=4.12,<4.17` because Asta's `langgraph-checkpoint-mongodb==0.4.0` dependency strictly required it.
+- Changed `redis==5.1.0` to `redis>=7.1.0` because Asta's environment had `falkordb 1.6.2` installed which required a newer redis-py client.
 Commit: Pending
 Regressions found on re-check: None
 Blocked items: None
