@@ -28,12 +28,17 @@ Tools are orchestrated by `toolsets.py` and `model_tools.py`. This confirms nati
 
 ---
 
-## ITERATION 3
+## ITERATION 4
 G1: PASS 
 G2: PASS
 G3: PASS (Memory call sites mapped)
-G4..G10: FAIL (Not yet started)
-Task attacked this iteration: G3, mapped Hermes's memory call sites.
+G4: PASS (AstaSessionDB adapter implemented and routes to MemoryEngine)
+G5: PASS (state.db creation verified disabled via real test)
+G6..G10: FAIL (Not yet started)
+Task attacked this iteration: G4 and G5, built the `AstaSessionDB` duck-typed adapter in `hermes_agent/asta_memory_bridge/adapter.py`, modified `hermes_agent/hermes_state.py` to overwrite `SessionDB = AstaSessionDB`, completely bypassing the SQLite initialization, verified no `state.db` gets written.
+Commit: Pending
+Regressions found on re-check: None
+Blocked items: None
 Files and Lines mapped:
 - `hermes_agent/hermes_state.py`: Core `SessionDB` logic (all SQLite/FTS5 persistence).
 - `hermes_agent/run_agent.py:2254`: `self._session_db.append_messages_batch(`
