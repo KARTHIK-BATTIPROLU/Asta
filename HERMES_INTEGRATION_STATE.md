@@ -28,9 +28,10 @@ Tools are orchestrated by `toolsets.py` and `model_tools.py`. This confirms nati
 
 ---
 
-## ITERATION 0 (Reconnaissance)
-G1..G10: FAIL (Not yet started)
-Task attacked this iteration: Phase 0 Reconnaissance
+## ITERATION 1
+G1: PASS (python -c "import sys, os; sys.path.insert(0, os.path.abspath('hermes_agent')); from run_agent import AIAgent; print('Success')" => Success)
+G2..G10: FAIL (Not yet started)
+Task attacked this iteration: G1, vendored Hermes Agent as a directory (`hermes_agent`), removed `.git` to keep history clean, added `__init__.py`. 
 Commit: Pending
 Regressions found on re-check: None
 Blocked items: None
