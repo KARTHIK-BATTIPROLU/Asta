@@ -3,7 +3,7 @@ ASTA Memory Layer - Entity Extractor
 ──────────────────────────────────
 
 This module uses an LLM to extract typed entities from a conversation.
-Called at session end, BEFORE saving to Neo4j/Pinecone.
+Called at session end, BEFORE saving to FalkorDB/Pinecone.
 """
 
 import json
@@ -21,7 +21,7 @@ Extract all entities mentioned. An entity is:
 - SKILL: A technical or personal skill (e.g. "Python", "DSA", "LangGraph", "public speaking")
 - PERSON: A specific person mentioned (e.g. "Ravi", "my CTO", "professor")
 - GOAL: A goal or aspiration mentioned (e.g. "grow community to 1000", "learn system design")
-- TOPIC: A knowledge topic discussed (e.g. "transformer architecture", "Neo4j queries", "AI agents")
+- TOPIC: A knowledge topic discussed (e.g. "transformer architecture", "FalkorDB queries", "AI agents")
 - DECISION: A decision made during the conversation (e.g. "decided to use Redis for caching")
 - TASK: A specific task or action item (e.g. "implement the research graph", "call Ravi tomorrow")
 
@@ -92,7 +92,7 @@ class EntityExtractor:
             for e in parsed.get("entities", []):
                 if e.get("name") and e.get("entity_type") in ENTITY_TYPES:
                     
-                    # Sanitize relation string for Neo4j (uppercase, underscores only)
+                    # Sanitize relation string for FalkorDB (uppercase, underscores only)
                     raw_rel = e.get("relation_to_user", "HAS")
                     clean_rel = "".join(c for c in raw_rel.upper() if c.isalnum() or c == "_")
                     if not clean_rel:

@@ -70,16 +70,30 @@ async def deep_health_check(token: str = Depends(verify_token)):
         }
         health_status["overall"] = "degraded"
     
-    # Check Neo4j
+    # Check FalkorDB
     try:
-        from memory.l2_graph import graph_store
-        result = await graph_store.query("RETURN 1 as test")
-        health_status["services"]["neo4j"] = {
-            "status": "ok",
-            "message": "Connected"
-        }
+        from backend.app.services.memory.graph_ltm import graph_ltm
+        
+        if not graph_ltm.is_initialized:
+            health_status["services"]["falkordb"] = {
+                "status": "not_initialized",
+                "message": "GraphLTM not initialized"
+            }
+        else:
+            health_check_result = await graph_ltm.health_check()
+            if health_check_result:
+                health_status["services"]["falkordb"] = {
+                    "status": "ok",
+                    "message": "Connected"
+                }
+            else:
+                health_status["services"]["falkordb"] = {
+                    "status": "error",
+                    "message": "Health check failed"
+                }
+                health_status["overall"] = "degraded"
     except Exception as e:
-        health_status["services"]["neo4j"] = {
+        health_status["services"]["falkordb"] = {
             "status": "error",
             "message": str(e)
         }

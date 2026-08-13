@@ -1,7 +1,7 @@
 """
 Unified Database Manager for ASTA.
 
-Single-source-of-truth for all database connections: MongoDB (Motor async) and Neo4j (async).
+Single-source-of-truth for all database connections: MongoDB (Motor async).
 All MongoDB operations in the entire codebase MUST go through db_manager.
 No PyMongo sync clients. No duplicate Motor clients. One pool. One health flag.
 """
@@ -10,7 +10,6 @@ import logging
 import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import ASCENDING
-from neo4j import AsyncGraphDatabase
 from typing import Optional, Any, Awaitable, Callable, TypeVar
 from backend.app.config import settings
 
@@ -25,7 +24,6 @@ class DatabaseManager:
     
     Provides:
       - One Motor async client for MongoDB (pool: 5-50 connections)
-      - One async Neo4j driver
       - Unified degraded_mode flag
       - Helper methods for safe collection access with retry
     """
@@ -35,7 +33,6 @@ class DatabaseManager:
         if cls._instance is None:
             cls._instance = super(DatabaseManager, cls).__new__(cls)
             cls._instance.mongo_client: Optional[AsyncIOMotorClient] = None
-            cls._instance.neo4j_driver = None
             cls._instance.db = None
             cls._instance.degraded_mode: bool = False
         return cls._instance
@@ -73,24 +70,7 @@ class DatabaseManager:
             self.db = None
             self.degraded_mode = True
 
-        # 2. Neo4j Aura Connection
-        try:
-            neo4j_uri = getattr(settings, "NEO4J_URI", None)
-            neo_user = getattr(settings, "NEO4J_USERNAME", None)
-            neo_pass = getattr(settings, "NEO4J_PASSWORD", None)
-
-            if not all([neo4j_uri, neo_user, neo_pass]):
-                logger.warning("[DatabaseManager] Neo4j Aura credentials missing. Skipping Graph Layer.")
-            else:
-                self.neo4j_driver = AsyncGraphDatabase.driver(
-                    neo4j_uri, auth=(neo_user, neo_pass), connection_timeout=5.0
-                )
-                logger.info("[DatabaseManager] Neo4j Aura Graph Database bindings initialized.")
-        except Exception as e:
-            logger.critical(f"[DatabaseManager] Failed to connect to Neo4j: {e}")
-            raise e
-
-        # 3. Ensure indexes on sessions collection
+        # 2. Ensure indexes on sessions collection
         if self.db is not None:
             await self._ensure_indexes()
 
@@ -200,15 +180,6 @@ class DatabaseManager:
             self.degraded_mode = True
             health = False
 
-        # Ping Neo4j
-        if self.neo4j_driver:
-            try:
-                await self.neo4j_driver.verify_connectivity()
-                logger.info("✔️  Neo4j Aura Health Check: Passed")
-            except Exception as e:
-                logger.error(f"❌ Neo4j Authentication Error or Instance Unavailable: {e}")
-                health = False
-
         return health
 
     async def disconnect(self):
@@ -216,9 +187,6 @@ class DatabaseManager:
         if self.mongo_client:
             self.mongo_client.close()
             logger.info("[DatabaseManager] MongoDB connection pool closed.")
-        if self.neo4j_driver:
-            await self.neo4j_driver.close()
-            logger.info("[DatabaseManager] Neo4j bindings shutdown.")
 
 
 db_manager = DatabaseManager()

@@ -270,7 +270,7 @@ class L4Store:
             logger.error(f"Failed to save entity {entity.name}: {e}")
     
     async def get_all_entities(self) -> List[Dict]:
-        """Return all known entities (used for Neo4j sync on startup)."""
+        """Return all known entities (used for FalkorDB sync on startup)."""
         try:
             cursor = self.db.entities.find({}, {"_id": 0})
             entities = await cursor.to_list(length=None)

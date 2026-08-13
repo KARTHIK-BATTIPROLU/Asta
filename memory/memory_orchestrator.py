@@ -83,7 +83,7 @@ class MemoryOrchestrator:
         Network latency breakdown:
         - Embedding: ~40ms (local)
         - Pinecone query: ~300-400ms (network)
-        - Neo4j search: ~1.8s (network)
+        - FalkorDB search: ~1.8s (network)
         - MongoDB fetch: ~2s (network)
         - Parallel execution: ~2-3s total
         
@@ -367,7 +367,7 @@ class MemoryOrchestrator:
     ) -> bool:
         """
         Confirm or reject a pending entity.
-        If approved, creates the node in Neo4j.
+        If approved, creates the node in FalkorDB.
         """
         try:
             collection = self.db["pending_confirmations"]

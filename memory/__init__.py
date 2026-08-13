@@ -5,7 +5,7 @@ ASTA Memory Layer
   L0  In-flight context (LangGraph state)
   L1  Redis hot cache (entities + session context)
   L1.5 Speculative prefetch (background entity loading)
-  L2  Neo4j knowledge graph (entity clusters + relationships)
+  L2  FalkorDB knowledge graph (entity clusters + relationships)
   L3  Pinecone vector store (semantic search)
   L4  MongoDB cold store (full sessions + permanent memory)
 

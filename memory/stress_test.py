@@ -19,7 +19,7 @@ logger = logging.getLogger("STRESS_TEST")
 
 # Import memory layers
 from memory.l1_cache import l1_cache
-from memory.l2_graph import l2_graph
+from backend.app.services.memory.graph_ltm import graph_ltm
 from memory.l3_vectors import l3_vectors
 from memory.l4_store import l4_store
 from memory.entity_extractor import entity_extractor
@@ -140,9 +140,9 @@ async def attack_2_layer_failure_isolation():
     logger.info("ATTACK 2 — Layer Failure Isolation")
     logger.info("="*80)
     
-    # Test 2.1: L2 Neo4j down - get_context should still work
+    # Test 2.1: L2 FalkorDB down - get_context should still work
     try:
-        # Simulate Neo4j failure by passing empty entity list
+        # Simulate FalkorDB failure by passing empty entity list
         result = await memory_engine.get_context_for_session(
             "test-session-l2-down",
             "test query about ASTA",
@@ -155,7 +155,7 @@ async def attack_2_layer_failure_isolation():
     
     # Test 2.2: Empty entity_names to get_cluster_session_ids
     try:
-        result = await l2_graph.get_cluster_session_ids([], depth=2)
+        result = await graph_ltm.get_cluster_session_ids([], depth=2)
         # Should return empty list, not crash
         passed = result == []
         log_test("2.2: get_cluster_session_ids with empty list", passed, "" if passed else f"Got {result}")
@@ -164,7 +164,7 @@ async def attack_2_layer_failure_isolation():
     
     # Test 2.3: None entity_names to get_cluster_session_ids
     try:
-        result = await l2_graph.get_cluster_session_ids(None, depth=2)
+        result = await graph_ltm.get_cluster_session_ids(None, depth=2)
         # If we get here without exception, check if it returned empty list (acceptable)
         if result == []:
             log_test("2.3: get_cluster_session_ids with None", True, "Handled gracefully with empty list")

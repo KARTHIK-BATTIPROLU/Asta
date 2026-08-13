@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from uuid import uuid4
 from memory.l1_cache import l1_cache
-from memory.l2_graph import l2_graph
+from backend.app.services.memory.graph_ltm import graph_ltm
 from memory.l3_vectors import l3_vectors
 from memory.l4_store import l4_store
 from memory.entity_extractor import entity_extractor
@@ -30,7 +30,7 @@ class MemoryEngine:
     L0  In-flight context (LangGraph state)
     L1  Redis hot cache (entities + session context)
     L1.5 Speculative prefetch (background entity loading)
-    L2  Neo4j knowledge graph (entity clusters + relationships)
+    L2  FalkorDB knowledge graph (entity clusters + relationships)
     L3  Pinecone vector store (semantic search)
     L4  MongoDB cold store (full sessions + permanent memory)
     """
@@ -44,14 +44,17 @@ class MemoryEngine:
         # Connect each layer
         layers = [
             ("L1_redis", l1_cache),
-            ("L2_neo4j", l2_graph),
+            ("L2_graphiti", graph_ltm),
             ("L3_pinecone", l3_vectors),
             ("L4_mongodb", l4_store),
         ]
         
         for name, layer in layers:
             try:
-                await layer.connect()
+                if name == "L2_graphiti":
+                    await layer.initialize()  # Graphiti uses initialize() not connect()
+                else:
+                    await layer.connect()
                 results[name] = "connected"
                 logger.info(f"Memory layer {name}: connected")
             except Exception as e:
@@ -74,7 +77,7 @@ class MemoryEngine:
         try:
             await prefetch_engine.stop()
             await l1_cache.disconnect()
-            await l2_graph.disconnect()
+            await graph_ltm.disconnect()
             # Pinecone and MongoDB connections are managed by their clients
             logger.info("Memory layers disconnected")
         except Exception as e:
@@ -108,11 +111,11 @@ class MemoryEngine:
                 return {"sessions": cached, "from_cache": True}
             
             # Step 2: Spot entities in input (fast, no LLM)
-            known_entities = await l2_graph.get_all_entity_names()
+            known_entities = await graph_ltm.get_all_entity_names()
             spotted = entity_extractor.spot_entities_in_text(user_input, known_entities)
             
-            # Step 3: Also check Neo4j for current focus (what was last worked on)
-            current_focus = await l2_graph.get_current_focus()
+            # Step 3: Also check graph for current focus (what was last worked on)
+            current_focus = await graph_ltm.get_current_focus()
             if current_focus.get("current_focus"):
                 focus_entity = current_focus["current_focus"]
                 if focus_entity not in spotted:
@@ -139,7 +142,7 @@ class MemoryEngine:
                         # Full retrieval pipeline with per-layer fallback
                         cluster_ids = []
                         try:
-                            cluster_ids = await l2_graph.get_cluster_session_ids(
+                            cluster_ids = await graph_ltm.get_cluster_session_ids(
                                 [entity_name], 
                                 depth=settings.MEMORY_CLUSTER_DEPTH
                             )
@@ -318,19 +321,19 @@ class MemoryEngine:
     
     async def _save_to_l2(self, session_id: str, entities: List[Entity], workflow_type: str, 
                          summary: str, metadata: SessionMetadata) -> bool:
-        """Save to Neo4j with error isolation."""
+        """Save to graph with error isolation."""
         for entity in entities:
-            await l2_graph.upsert_entity(entity.name, entity.entity_type, entity.description, entity.relation_to_user)
+            await graph_ltm.upsert_entity(entity.name, entity.entity_type, entity.description, entity.relation_to_user)
             await l4_store.save_entity(entity)
         
-        await l2_graph.link_session_to_entities(
+        await graph_ltm.link_session_to_entities(
             session_id, entities, workflow_type, summary[:200]
         )
         
         # Update Karthik's current focus if a project was discussed
         projects = [e for e in entities if e.entity_type == "PROJECT"]
         if projects:
-            await l2_graph.update_current_focus(projects[0].name)
+            await graph_ltm.update_current_focus(projects[0].name)
         
         return True
     
@@ -424,7 +427,7 @@ class MemoryEngine:
         try:
             return {
                 "l1_redis": await l1_cache.health_check(),
-                "l2_neo4j": True,  # If connect worked, assume healthy
+                "l2_graphiti": True,  # If connect worked, assume healthy
                 "l3_pinecone": True,
                 "l4_mongodb": True,
                 "prefetch_queue_size": prefetch_engine.get_queue_size()
@@ -433,7 +436,7 @@ class MemoryEngine:
             logger.error(f"Health check failed: {e}")
             return {
                 "l1_redis": False,
-                "l2_neo4j": False,
+                "l2_graphiti": False,
                 "l3_pinecone": False,
                 "l4_mongodb": False,
                 "prefetch_queue_size": 0

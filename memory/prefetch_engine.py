@@ -42,13 +42,13 @@ class PrefetchEngine:
         """Lazy import to avoid circular dependencies."""
         if self._l1_cache is None:
             from memory.l1_cache import l1_cache
-            from memory.l2_graph import l2_graph
+            from backend.app.services.memory.graph_ltm import graph_ltm
             from memory.l3_vectors import l3_vectors
             from memory.l4_store import l4_store
             from memory.entity_extractor import entity_extractor
             
             self._l1_cache = l1_cache
-            self._l2_graph = l2_graph
+            self._l2_graph = graph_ltm
             self._l3_vectors = l3_vectors
             self._l4_store = l4_store
             self._entity_extractor = entity_extractor
@@ -64,7 +64,7 @@ class PrefetchEngine:
         # Initialize bounded queue to prevent memory leak
         self._prefetch_queue = asyncio.Queue(maxsize=self._max_queue_size)
         
-        # Load all known entity names from Neo4j for fast spotting
+        # Load all known entity names from FalkorDB/Graphiti for fast spotting
         try:
             self._known_entities = await self._l2_graph.get_all_entity_names()
         except Exception as e:
@@ -143,7 +143,7 @@ class PrefetchEngine:
                 
                 logger.debug(f"Prefetching context for entity: {entity_name}")
                 
-                # Step 1: Neo4j cluster search for this entity
+                # Step 1: FalkorDB cluster search for this entity
                 session_ids = await self._l2_graph.get_cluster_session_ids(
                     [entity_name], 
                     depth=settings.MEMORY_CLUSTER_DEPTH

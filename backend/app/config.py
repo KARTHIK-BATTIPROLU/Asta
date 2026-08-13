@@ -18,10 +18,11 @@ class Settings(BaseSettings):
     NOTION_CONTENT_DB: str = ""
     NOTION_YOUTUBE_DB: str = ""
     NOTION_ROUTINE_DB: str = ""
-    NEO4J_URI: str = ""
-    NEO4J_USERNAME: str = "neo4j"
-    NEO4J_PASSWORD: str = ""
-    NEO4J_DATABASE: str = "neo4j"
+    FALKORDB_HOST: str = "localhost"
+    FALKORDB_PORT: int = 6379
+    FALKORDB_USERNAME: str = ""
+    FALKORDB_PASSWORD: str = ""
+    FALKORDB_DATABASE: str = "asta_graph"
     ANTHROPIC_API_KEY: str = ""
     OPENWEATHER_API_KEY: str = ""
     GEMINI_API_KEY: str = ""
@@ -38,7 +39,7 @@ class Settings(BaseSettings):
     REDIS_TTL_ENTITY: int = 86400      # 24 hours for entity cache
     
     MEMORY_TOP_K_SESSIONS: int = 3     # how many past sessions to inject
-    MEMORY_CLUSTER_DEPTH: int = 2      # Neo4j traversal depth for clusters
+    MEMORY_CLUSTER_DEPTH: int = 2      # Graph traversal depth for clusters
     MEMORY_PREFETCH_ENABLED: bool = True
     
     SESSION_TRANSCRIPT_TTL_DAYS: int = 90  # delete raw transcripts after 90 days
