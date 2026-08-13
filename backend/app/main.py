@@ -1,6 +1,5 @@
 import sys
 import asyncio
-from contextlib import asynccontextmanager
 
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
@@ -51,32 +50,10 @@ try:
 except ImportError:
     pass
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    logger.info("Starting ASTA backend services...")
-    registry.initialize()
-    
-    # Start Scheduler and Accountability Monitor
-    from backend.app.services.scheduler_service import scheduler_service
-    scheduler_service.start()
-    
-    from backend.app.workflows.accountability_monitor import monitor
-    monitor.schedule_next()
-    
-    yield
-    
-    # Shutdown
-    logger.info("Shutting down ASTA backend services...")
-    await registry.shutdown()
-    scheduler_service.stop()
-    logger.info("Backend shutdown complete.")
-
 app = FastAPI(
     title="ASTA Engine",
     description="Advanced System for Task Automation",
     version="1.0.0",
-    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -102,6 +79,11 @@ app.include_router(content_router, prefix="/api")
 app.include_router(health_router, prefix="/api")
 from backend.app.api import settings_routes
 app.include_router(settings_routes.router, prefix="/api", tags=["settings"])
+from backend.app.api import ws_transport
+from backend.app.api import sync_routes
+
+# Note: WS routes are registered inside ws_transport
+app.include_router(sync_routes.router, prefix="/api/v1", tags=["sync"])
 
 
 @app.get("/api/me")
@@ -234,14 +216,21 @@ async def chat_completions_adapter(request: ChatCompletionRequest, token: str = 
 async def startup_event():
     logger.info("Initializing MVE Core Services...")
     
-    # 0. Environment Validation (Fail-Fast)
+    # 0. Environment Validation & Core Libs (Fail-Fast)
     try:
         from backend.app.core.env_validation import validate_environment
         validate_environment()
+        
+        # Verify absolute core dependencies
+        import graphiti_core
+        import pipecat
+        import langchain_core
+        import groq
+        import apscheduler
     except Exception as e:
-        logger.critical("Startup Terminated due to Environment Validation Failure.")
+        logger.critical(f"Startup Terminated due to Environment/Core Lib Validation Failure: {e}")
         # Re-raise to prevent uvicorn from starting up broken
-        raise e
+        raise RuntimeError(f"Core dependency missing: {e}")
     
     # 1. Spacy Validation
     try:
@@ -259,11 +248,19 @@ async def startup_event():
         if not health:
              logger.warning("Degraded Mode Status: Database Health Check Failed! Some systems may run offline.")
              
-        # Optional: Direct Neo4j Check if defined in registry or memory_handler
-        from backend.app.config import settings
-        if not settings.NEO4J_URI or not settings.NEO4J_PASSWORD:
-            logger.warning("Degraded Mode Status: Neo4j Aura credentials missing from environment.")
+        from backend.app.services.memory.graph_ltm import graph_ltm
+        await graph_ltm.initialize()
+        if not graph_ltm.is_initialized:
+            if settings.STRICT_MEMORY:
+                raise RuntimeError(
+                    "STRICT_MEMORY=1 and FalkorDB graph memory is uninitialized. "
+                    "Refusing to boot memory-less in production."
+                )
+            logger.warning("Degraded Mode Status: FalkorDB Graph Memory uninitialized.")
     except Exception as e:
+        if settings.STRICT_MEMORY:
+            logger.critical(f"STRICT_MEMORY=1: Startup Terminated, memory layer failed to bind: {e}")
+            raise
         logger.error(f"Degraded Mode Status: Failed to bind critical Polyglot Persistence endpoints! {e}")
     
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -341,13 +338,20 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"SessionManager startup failed: {e}")
 
+    # Start outbox worker for async memory extraction
+    try:
+        from backend.app.core.outbox_worker import start_outbox_worker
+        start_outbox_worker()
+        logger.info("Outbox worker started")
+    except Exception as e:
+        logger.warning(f"Outbox worker startup failed: {e}")
+
     # Saga Retry Worker removed in Phase 0
 
     # Initialize Wake Word Detection Service
     try:
         from backend.app.services.wake_word_service import initialize_wake_word_service
-        from backend.app.config import settings
-        
+
         if settings.WAKE_WORD_ENABLED:
             wake_word_service = initialize_wake_word_service(
                 wake_words=settings.WAKE_WORD_MODELS.split(","),
@@ -446,6 +450,9 @@ async def startup_event():
         scheduler_service.set_night_callback(night_planning_callback)
         scheduler_service.start()
         logger.info("Scheduler started: morning alarm 5:30 AM IST, night planning 10:30 PM IST")
+
+        from backend.app.workflows.accountability_monitor import monitor
+        monitor.schedule_next()
     except Exception as e:
         logger.error(f"Scheduler startup failed: {e}")
 
@@ -509,10 +516,16 @@ async def shutdown_event():
 
     # Saga drain removed in Phase 0
     try:
+        from backend.app.core.outbox_worker import stop_outbox_worker
+        await stop_outbox_worker()
+    except Exception as e:
+        logger.warning(f"Outbox worker shutdown error: {e}")
+
+    try:
         from backend.app.services.session_manager import SessionManager
         await SessionManager.stop_workers()
     except Exception as e:
-        pass
+        logger.warning(f"Error stopping session manager workers: {e}")
         
     try:
         from backend.app.core.task_registry import TaskRegistry

@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: asta
+Version: 0.1.0
+Summary: ASTA Backend Engine
+Requires-Python: >=3.9

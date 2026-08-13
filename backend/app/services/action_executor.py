@@ -175,8 +175,7 @@ class OpenClawTool:
                     return False, f"Blocked flag: {flag}", []
                 # Only validate against allowed list if the allowed set is non-empty
                 if allowed and flag not in allowed:
-                    # Allow non-flag values (e.g., port numbers after -p)
-                    pass  # Non-flag args are allowed through
+                    return False, f"Disallowed flag: {flag}", []
             
             sanitized.append(arg_str)
         

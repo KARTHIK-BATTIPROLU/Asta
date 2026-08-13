@@ -184,8 +184,12 @@ class Router:
             try:
                 if audio is not None and task == "stt":
                     text = await prov.stt(model, audio, **kw)
-                    # Rough token estimation for audio: seconds * 2
-                    await self.ledger.spend(prov.name, 100) # placeholder
+                    # We can use the length of the audio or an approximation 
+                    # Assuming 100 was a placeholder, we use a more dynamic approximation based on audio bytes 
+                    # standard is roughly bytes / 32000 (seconds) -> say 10 tokens per second
+                    audio_seconds = len(audio) / 32000.0 if len(audio) > 0 else 0
+                    tokens_used = max(1, int(audio_seconds * 10))
+                    await self.ledger.spend(prov.name, tokens_used)
                     return text
                 else:
                     r = await prov.chat(model, messages or [], **kw)
@@ -222,3 +226,12 @@ async def acomplete(
     except Exception as e:
         logger.error(f"[LLMFactory] {e}")
         return "Sorry boss, my language models are unreachable right now."
+
+class LegacyLLMFactory:
+    def get_model(self, task: str):
+        from langchain_groq import ChatGroq
+        from backend.app.config import settings
+        return ChatGroq(api_key=settings.GROQ_API_KEY, model="llama-3.3-70b-versatile", temperature=0)
+
+llm_factory = LegacyLLMFactory()
+llm_router = router

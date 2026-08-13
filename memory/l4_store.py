@@ -295,6 +295,16 @@ class L4Store:
         except Exception as e:
             logger.error(f"Failed to save content log: {e}")
     
+    async def health_check(self) -> bool:
+        """Check if MongoDB is actually reachable right now."""
+        if not self.client:
+            return False
+        try:
+            await self.client.admin.command('ping')
+            return True
+        except Exception:
+            return False
+
     async def disconnect(self) -> None:
         """Close MongoDB connection."""
         if self.client:

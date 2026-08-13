@@ -1,5 +1,6 @@
 import os
 import logging
+from typing import Optional
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 
@@ -18,6 +19,8 @@ class Settings(BaseSettings):
     NOTION_CONTENT_DB: str = ""
     NOTION_YOUTUBE_DB: str = ""
     NOTION_ROUTINE_DB: str = ""
+    
+    # FalkorDB Configuration (L2 Graph Database)
     FALKORDB_HOST: str = "localhost"
     FALKORDB_PORT: int = 6379
     FALKORDB_USERNAME: str = ""
@@ -41,6 +44,12 @@ class Settings(BaseSettings):
     MEMORY_TOP_K_SESSIONS: int = 3     # how many past sessions to inject
     MEMORY_CLUSTER_DEPTH: int = 2      # Graph traversal depth for clusters
     MEMORY_PREFETCH_ENABLED: bool = True
+
+    # When true, a Graphiti/Neo4j L2 graph memory init failure at startup is
+    # fatal instead of a logged warning. Off by default so local/dev boots
+    # stay degradable; set true in production so ASTA never runs silently
+    # memory-less again.
+    STRICT_MEMORY: bool = False
     
     SESSION_TRANSCRIPT_TTL_DAYS: int = 90  # delete raw transcripts after 90 days
     
@@ -116,7 +125,7 @@ class Settings(BaseSettings):
 
     # Wake Word Detection
     WAKE_WORD_ENABLED: bool = False
-    WAKE_WORD_MODELS: str = "hey_jarvis"
+    WAKE_WORD_MODELS: str = "hey_asta"
     WAKE_WORD_THRESHOLD: float = 0.5
     WAKE_WORD_COOLDOWN: float = 2.0
 

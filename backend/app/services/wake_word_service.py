@@ -33,13 +33,13 @@ class WakeWordService:
         Initialize the wake word detection service.
         
         Args:
-            wake_words: List of wake word model names to load (e.g., ["hey_jarvis", "alexa"])
+            wake_words: List of wake word model names to load (e.g., ["hey_asta"])
             threshold: Detection confidence threshold (0.0 to 1.0)
             sample_rate: Audio sample rate in Hz
             chunk_size: Number of samples per chunk (80ms recommended)
             inference_framework: "tflite" or "onnx"
         """
-        self.wake_words = wake_words or ["hey_jarvis"]  # Default wake word
+        self.wake_words = wake_words or ["hey_asta"]  # Default wake word
         self.threshold = threshold
         self.sample_rate = sample_rate
         self.chunk_size = chunk_size

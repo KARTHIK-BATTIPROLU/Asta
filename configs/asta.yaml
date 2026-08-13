@@ -1,0 +1,40 @@
+# ASTA livekit-wakeword Training Configuration
+# Usage: python -m wakeword.train configs/asta.yaml
+
+wake_words:
+  - "hey asta"
+  - "asta"
+
+model: "conv_attention"
+base_model: "openwakeword"
+
+synthesis:
+  languages:
+    - en
+  # Include generic and Indian-English TTS voices for robustness
+  voices:
+    - "en-US-Neural2-F"
+    - "en-US-Neural2-A"
+    - "en-IN-Neural2-A"
+    - "en-IN-Neural2-B"
+    - "en-IN-Neural2-C"
+    - "en-GB-Neural2-A"
+  
+augmentation:
+  noise: true
+  reverb: true
+  gain: true
+
+# NOTE: Before running training, you must place your 50 real-owner audio clips (OPEN-2)
+# into the positive data directory, and 30 minutes of "life noise" (room fan, road, Telugu TV) 
+# into the negative data directory as required by the Implementation Guide.
+
+training:
+  epochs: 100
+  batch_size: 64
+  learning_rate: 0.001
+  export_format: "onnx"
+
+eval:
+  target_fpph: 0.2
+  target_recall: 0.9

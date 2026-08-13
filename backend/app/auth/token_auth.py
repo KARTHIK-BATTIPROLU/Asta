@@ -49,11 +49,12 @@ async def verify_bearer_and_device(
         logger.warning(f"[Auth] Device authorization failed. Header device_id: {x_device_id}, registered: {registered['device_id']}")
         raise HTTPException(status_code=403, detail="Unauthorized device ID")
         
-    # Update last_seen asynchronously in background
-    asyncio.create_task(collection.update_one(
-        {"_id": registered["_id"]},
-        {"$set": {"last_seen": datetime.now(timezone.utc)}}
-    ))
+    async def _update_last_seen():
+        await collection.update_one(
+            {"_id": registered["_id"]},
+            {"$set": {"last_seen": datetime.now(timezone.utc)}}
+        )
+    asyncio.create_task(_update_last_seen())
     
     return authorization.credentials
 
@@ -85,10 +86,11 @@ async def verify_ws_token_and_device(websocket: WebSocket) -> bool:
         logger.warning(f"[Auth] WS unauthorized connection attempt: device ID {device_id} not registered")
         return False
         
-    # Update last_seen asynchronously in background
-    asyncio.create_task(collection.update_one(
-        {"_id": registered["_id"]},
-        {"$set": {"last_seen": datetime.now(timezone.utc)}}
-    ))
+    async def _update_last_seen():
+        await collection.update_one(
+            {"_id": registered["_id"]},
+            {"$set": {"last_seen": datetime.now(timezone.utc)}}
+        )
+    asyncio.create_task(_update_last_seen())
     
     return True

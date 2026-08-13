@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 import asyncio
 from groq import AsyncGroq, RateLimitError
 from backend.app.config import config as settings
@@ -8,24 +8,25 @@ logger = logging.getLogger("LLM_Stream")
 client = AsyncGroq(api_key=settings.GROQ_API_KEY)
 
 def get_system_prompt(health_status: str = "full", memory_context: str = ""):
-    # ASTA Personality (added for memory integration)
-    ASTA_PERSONALITY = """You are ASTA — Karthik's personal AI brain.
-Personality: Gen-Z, cheerful, funny, occasionally sarcastic. Always call him "boss".
-In research/deep work mode: professional, focused, thorough.
-In casual conversation: chill, witty, supportive.
-Keep voice responses to 1-3 sentences max unless asked for detail.
-Never say "I cannot" — find a way or ask a clarifying question."""
-
+    from datetime import datetime, timezone
+    from backend.app.core.persona import build_persona_block
+    
+    now = datetime.now(timezone.utc)
+    # Persona handles time-based greetings and mood. We extract a pseudo-mood from health_status
+    mood = None
     mode_notice = ""
     if health_status == "local_only":
         mode_notice = "\n[SYSTEM NOTICE: Operating in Local-Only mode. Long-term memory unavailable.]"
+        mood = "local-only restricted"
     elif health_status == "degraded_l3":
         mode_notice = "\n[SYSTEM NOTICE: Graph memory degraded. Using vector search only.]"
+        mood = "degraded memory"
     elif health_status == "degraded_l2_l3":
         mode_notice = "\n[SYSTEM NOTICE: Archival memory degraded. Relying on conversation history only.]"
+        mood = "severely degraded memory"
 
-    # Build system prompt with memory context
-    system_prompt = ASTA_PERSONALITY
+    # Build system prompt with persona
+    system_prompt = build_persona_block(now, mood)
     
     # Add memory context if available
     if memory_context:

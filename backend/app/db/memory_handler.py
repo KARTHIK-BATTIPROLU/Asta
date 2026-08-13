@@ -1,14 +1,14 @@
 """
-Memory Handler — async session_memory collection access.
+Memory Handler — async insights collection access.
 
-Stores and retrieves session memory embeddings via the unified db_manager.
+Stores and retrieves individual session insights with their embeddings via the unified db_manager.
 All operations are async. No PyMongo sync calls.
 """
 
 import logging
 import math
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Dict, Any
 
 try:
     import numpy as np
@@ -21,59 +21,58 @@ logger = logging.getLogger(__name__)
 
 
 class MemoryHandler:
-    """Async memory handler for session_memory collection."""
+    """Async memory handler for insights collection."""
 
-    COLLECTION_NAME = "session_memory"
+    COLLECTION_NAME = "insights"
 
     def _get_collection(self):
-        """Get the session_memory collection from unified db_manager."""
+        """Get the insights collection from unified db_manager."""
         if db_manager.db is None:
             return None
         return db_manager.db[self.COLLECTION_NAME]
 
-    async def store_memory(self, session_id: str, summary: str, embedding: List[float]) -> bool:
-        """Store a session summary + embedding vector to MongoDB."""
+    async def store_insight(self, session_id: str, kind: str, text: str, entities: List[str], confidence: float, embedding: List[float], pinned: bool = False) -> bool:
+        """Store a single insight + embedding vector to MongoDB."""
         collection = self._get_collection()
         if collection is None:
-            logger.warning("[MEMORY] MongoDB collection not available to store memory.")
+            logger.warning("[MEMORY] MongoDB collection not available to store insight.")
             return False
 
         now = datetime.now(timezone.utc)
         doc = {
             "session_id": session_id,
-            "summary": summary,
+            "ts": now,
+            "kind": kind,
+            "text": text,
+            "entities": entities,
+            "confidence": confidence,
             "embedding": embedding,
-            "timestamp": now,
+            "pinned": pinned
         }
 
         try:
-            await collection.update_one(
-                {"session_id": session_id},
-                {"$set": doc},
-                upsert=True,
-            )
-            logger.info(f"[MEMORY] Summary stored and embedding generated for session {session_id}")
+            await collection.insert_one(doc)
+            logger.debug(f"[MEMORY] Insight stored for session {session_id}")
             return True
         except Exception as e:
-            logger.error(f"[MEMORY] Failed to store memory: {e}")
+            logger.error(f"[MEMORY] Failed to store insight: {e}")
             return False
 
-    async def get_relevant_memories(self, query_embedding: List[float], top_k: int = 3) -> List[str]:
-        """Retrieves top_k similar summaries from session_memory via cosine similarity."""
+    async def get_relevant_insights(self, query_embedding: List[float], top_k: int = 24) -> List[Dict[str, Any]]:
+        """Retrieves top_k similar insights from MongoDB via cosine similarity."""
         collection = self._get_collection()
         if collection is None:
             logger.warning("[MEMORY] MongoDB collection not available for retrieval.")
             return []
 
         try:
-            cursor = collection.find({}, {"summary": 1, "embedding": 1})
-            memories = await cursor.to_list(length=500)
+            # For Phase 3, we fetch all insights and score them in-memory if Atlas Vector Search is not configured.
+            # In a production setup, this would be an aggregate with $vectorSearch.
+            cursor = collection.find({}, {"text": 1, "embedding": 1, "kind": 1, "entities": 1, "pinned": 1, "ts": 1})
+            memories = await cursor.to_list(length=1000)
 
             if not memories:
-                logger.info("[MEMORY] No previous memories found.")
                 return []
-
-            logger.info(f"[MEMORY] RETRIEVAL TRIGGERED. Searching {len(memories)} memories.")
 
             scored_memories = []
             for mem in memories:
@@ -98,17 +97,15 @@ class MemoryHandler:
                         continue
                     sim = dot / (norm1 * norm2)
 
-                scored_memories.append((sim, mem.get("summary", "")))
+                mem["similarity"] = sim
+                scored_memories.append(mem)
 
-            logger.info(f"[MEMORY] Retrieved {len(scored_memories)} results")
-
-            threshold = 0.45
-            filtered_results = [m for m in scored_memories if m[0] > threshold]
-            filtered_results.sort(key=lambda x: x[0], reverse=True)
-            top_matches = [m[1] for m in filtered_results[:top_k] if m[1]]
-
-            if top_matches:
-                logger.info(f"[MEMORY] TOP MATCHES FOUND: {len(top_matches)} matches")
+            # Pre-filter by baseline similarity before full ranking logic
+            threshold = 0.3
+            filtered_results = [m for m in scored_memories if m["similarity"] > threshold]
+            filtered_results.sort(key=lambda x: x["similarity"], reverse=True)
+            
+            top_matches = filtered_results[:top_k]
             return top_matches
 
         except Exception as e:

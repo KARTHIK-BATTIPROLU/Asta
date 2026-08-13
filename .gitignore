@@ -20,11 +20,11 @@ backend/secrets/
 .DS_Store
 
 # Generated
+/backups/
 /tmp/asta_images/
 *.log
 *pre_restart*.log*
 *.log.bak
 google-services (1).json
 venv_verify/
-backups/
 frontend/config.js

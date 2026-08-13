@@ -9,13 +9,17 @@ from backend.app.models.session_model import SessionSummary
 
 logger = logging.getLogger(__name__)
 
-# Initialize LLM for summarization
-# We use a lower temperature for consistent formatting
-llm_summarizer = ChatGroq(
-    model_name=config.MODEL_NAME or "llama-3.3-70b-versatile",
-    temperature=0.3,
-    groq_api_key=config.GROQ_API_KEY
-)
+_llm_summarizer = None
+
+def _get_llm_summarizer():
+    global _llm_summarizer
+    if _llm_summarizer is None:
+        _llm_summarizer = ChatGroq(
+            model_name=config.MODEL_NAME or "llama-3.3-70b-versatile",
+            temperature=0.3,
+            groq_api_key=config.GROQ_API_KEY
+        )
+    return _llm_summarizer
 
 SUMMARY_SYSTEM_PROMPT = """
 You are an expert AI session analyzer.
@@ -97,7 +101,7 @@ async def generate_session_summary(messages: List[Dict[str, Any]]) -> SessionSum
         conversation_text = "...[truncated]...\n" + conversation_text[-MAX_CONVERSATION_CHARS:]
 
     try:
-        response = await asyncio.wait_for(llm_summarizer.ainvoke([
+        response = await asyncio.wait_for(_get_llm_summarizer().ainvoke([
             SystemMessage(content=SUMMARY_SYSTEM_PROMPT),
             HumanMessage(content=f"Analyze this conversation:\n\n{conversation_text}")
         ]), timeout=config.AGENT_TIMEOUT_SECONDS)

@@ -58,6 +58,7 @@ filler_pool = FillerPool()
 
 class ReflexProcessor(FrameProcessor):
     async def process_frame(self, frame: Frame, direction):
+        await super().process_frame(frame, direction)
         if isinstance(frame, TranscriptionFrame):
             cost = estimate_cost(frame.text)
             if cost >= SLOW_THRESHOLD:

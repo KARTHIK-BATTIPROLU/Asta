@@ -1,12 +1,9 @@
 .PHONY: verify
 
+# Real verification, in order, failing loudly on any step:
+#   (a) import backend.app.main from a clean cwd
+#   (b) boot check: start uvicorn, poll /api/health/ until 200 (30s timeout), kill it
+#   (c) pytest across docs/verification/probes, backend/tests, tests
+#   (d) nonzero exit on ANY failure (see scripts/verify.sh)
 verify:
-	@echo "--- Phase 0 Verification ---"
-	@echo "Checking import backend.app.main..."
-	@python -c "import backend.app.main" && echo "[OK] import backend.app.main" || (echo "[FAIL] import backend.app.main" && exit 1)
-	@echo "--- Phase 1 Verification ---"
-	@echo "Checking import backend.app.voice.pipeline..."
-	@python -c "import backend.app.voice.pipeline" && echo "[OK] import backend.app.voice.pipeline" || (echo "[FAIL] import backend.app.voice.pipeline" && exit 1)
-	@echo "Running Pytest for Router..."
-	@pytest tests/test_router.py -q && echo "[OK] Pytest passed" || (echo "[FAIL] Pytest failed" && exit 1)
-	@echo "All verify checks passed."
+	@bash scripts/verify.sh
