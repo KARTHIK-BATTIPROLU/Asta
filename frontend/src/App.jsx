@@ -11,6 +11,7 @@ if (!WS_TOKEN) {
 const WS_DEVICE_ID = import.meta.env.VITE_ASTA_DEVICE_ID || "asta-web-client";
 const WS_HOST = import.meta.env.VITE_ASTA_WS_HOST || "ws://localhost:8000";
 const WS_BASE_URL = `${WS_HOST}/ws/conversation?token=${encodeURIComponent(WS_TOKEN)}&device_id=${encodeURIComponent(WS_DEVICE_ID)}`;
+const WAKE_WORD_ENABLED = false; // Disabled as per user request
 
 // TASK 1: DEFINE STATES
 const STATE = {
@@ -764,7 +765,12 @@ function App() {
             int16Data[i] = s < 0 ? s * 32768 : s * 32767;
           }
           
-          // Only append if we are capturing
+          // Send audio continuously for Pipecat backend
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(int16Data.buffer);
+          }
+          
+          // Also append for fallback/local tracking if needed
           pcmBuffersRef.current.push(int16Data);
         };
 
@@ -974,6 +980,7 @@ function App() {
   const wakeWordRecognitionRef = useRef(null);
 
   useEffect(() => {
+    if (!WAKE_WORD_ENABLED) return;
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       console.warn("SpeechRecognition not supported in this browser.");
@@ -1013,12 +1020,16 @@ function App() {
       console.log("[Wake Word Listener] Recognition ended.");
       // Restart if we are still IDLE
       if (currentStateRef.current === STATE.IDLE && !isRecordingRef.current && !isUnmountingRef.current) {
-        try {
-          rec.start();
-          console.log("[Wake Word Listener] Restarted.");
-        } catch (e) {
-          console.error("[Wake Word Listener] Restart error:", e);
-        }
+        setTimeout(() => {
+          if (currentStateRef.current === STATE.IDLE && !isRecordingRef.current && !isUnmountingRef.current) {
+            try {
+              rec.start();
+              console.log("[Wake Word Listener] Restarted.");
+            } catch (e) {
+              console.error("[Wake Word Listener] Restart error:", e);
+            }
+          }
+        }, 1000);
       }
     };
 
@@ -1036,6 +1047,7 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!WAKE_WORD_ENABLED) return;
     const rec = wakeWordRecognitionRef.current;
     if (!rec) return;
 

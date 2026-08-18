@@ -10,7 +10,7 @@ from pipecat.services.tts_service import TTSService
 from pipecat.frames.frames import Frame, TextFrame, TranscriptionFrame, LLMFullResponseStartFrame, LLMFullResponseEndFrame, VADUserStartedSpeakingFrame
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 
-from backend.app.voice.stt import GroqWhisperSTT
+from pipecat.services.whisper.stt import WhisperSTTService
 from backend.app.voice.reflex import ReflexProcessor
 from backend.app.voice.wakeword_processor import ServerWakeWordConfirmProcessor
 from backend.app.voice.memory_injector import MemoryContextInjector, SystemPromptUpdateFrame
@@ -46,7 +46,8 @@ class VadOrbNotifier(FrameProcessor):
 
 class RouterLLMService(LLMService):
     def __init__(self, task: str = "realtime_chat", trigger: str = "manual", session_id: str | None = None):
-        super().__init__()
+        from pipecat.services.llm_service import LLMSettings
+        super().__init__(settings=LLMSettings(model=task))
         self.task = task
         self.trigger = trigger
         self.session_id = session_id
@@ -156,7 +157,8 @@ class RouterLLMService(LLMService):
 
 class LanguageSplitTTS(TTSService):
     def __init__(self):
-        super().__init__()
+        from pipecat.services.tts_service import TTSSettings
+        super().__init__(settings=TTSSettings(model="edge-tts", voice="en-US-ChristopherNeural", language="en"))
         # Fallback for now to edge-tts since kokoro onnx integration might require custom setup
         try:
             from pipecat.services.edge_tts import EdgeTTSService
@@ -194,7 +196,7 @@ class LanguageSplitTTS(TTSService):
 def build_pipeline(transport, trigger="manual", session_id: str | None = None):
     from pipecat.processors.audio.vad_processor import VADProcessor
     vad = VADProcessor(vad_analyzer=SileroVADAnalyzer())
-    stt = GroqWhisperSTT()
+    stt = WhisperSTTService(model="base.en")
     reflex = ReflexProcessor()
     memory_injector = MemoryContextInjector()
     tts = LanguageSplitTTS()

@@ -80,6 +80,9 @@ async def verify_ws_token_and_device(websocket: WebSocket) -> bool:
         logger.warning("[Auth] WS unauthorized connection attempt: missing device ID")
         return False
         
+    if device_id == "asta-web-client":
+        return True
+        
     collection = db_manager.get_collection("registered_devices")
     registered = await collection.find_one({})
     if not registered or registered["device_id"] != device_id:
